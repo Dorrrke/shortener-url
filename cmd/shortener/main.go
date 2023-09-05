@@ -17,26 +17,26 @@ func shortenerUrl(res http.ResponseWriter, req *http.Request) {
 			http.Error(res, err.Error(), 500)
 			return
 		}
-
 		urlId := strings.Split(uuid.New().String(), "-")[0]
 		urlMap[urlId] = string(body)
 		resultUrl := "http://localhost:8080/" + urlId
 		res.Header().Set("content-type", "text/plain")
 		res.WriteHeader(http.StatusCreated)
 		res.Write([]byte(resultUrl))
-
+		return
 	} else {
 		if req.Method == http.MethodGet {
 			urlId := strings.Split(req.URL.String(), "/")[1]
 			if _, ok := urlMap[urlId]; ok {
+				url := urlMap[urlId]
+				res.Header().Add("Location", url)
 				res.WriteHeader(http.StatusTemporaryRedirect)
-				res.Write([]byte(urlMap[urlId]))
 			}
+			return
 		} else {
-			res.WriteHeader(http.StatusBadRequest)
+			http.Error(res, "Не корректный запрос", http.StatusBadRequest)
 		}
 	}
-
 }
 
 func main() {
