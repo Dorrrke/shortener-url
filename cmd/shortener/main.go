@@ -11,10 +11,10 @@ var stor storage.URLStorage
 
 func handleRoot(res http.ResponseWriter, req *http.Request) {
 	if req.Method == http.MethodPost {
-		handlers.ShortenerURL(res, req, stor)
+		handlers.ShortenerURLHandler(res, req, stor)
 	}
 	if req.Method == http.MethodGet {
-		handlers.GetOriginalURL(res, req, stor)
+		handlers.GetOriginalURLHandler(res, req, stor)
 	}
 }
 

@@ -9,7 +9,7 @@ import (
 	"github.com/google/uuid"
 )
 
-func ShortenerURL(res http.ResponseWriter, req *http.Request, s storage.URLStorage) {
+func ShortenerURLHandler(res http.ResponseWriter, req *http.Request, s storage.URLStorage) {
 	if req.Method == http.MethodPost {
 		body, err := io.ReadAll(req.Body)
 		if err != nil {
@@ -23,5 +23,7 @@ func ShortenerURL(res http.ResponseWriter, req *http.Request, s storage.URLStora
 		res.WriteHeader(http.StatusCreated)
 		res.Write([]byte(resultURL))
 		return
+	} else {
+		http.Error(res, "Не корректный запрос", http.StatusBadRequest)
 	}
 }
