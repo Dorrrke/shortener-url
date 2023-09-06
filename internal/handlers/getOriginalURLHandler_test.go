@@ -69,6 +69,8 @@ func TestGetOriginalURLHandler(t *testing.T) {
 
 			assert.Equal(t, tt.want.code, result.StatusCode)
 			assert.Equal(t, tt.want.location, result.Header.Get("Location"))
+
+			result.Body.Close()
 		})
 	}
 }

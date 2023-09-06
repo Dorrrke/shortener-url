@@ -73,6 +73,8 @@ func TestShortenerURLHandler(t *testing.T) {
 
 			assert.Equal(t, tt.want.code, result.StatusCode)
 			assert.Equal(t, tt.want.contentType, result.Header.Get("Content-Type"))
+
+			result.Body.Close()
 		})
 	}
 }
