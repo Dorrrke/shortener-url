@@ -10,6 +10,8 @@ type URLStorage struct {
 	URLMap map[string]string
 }
 
+var MapURL URLStorage
+
 func (storage URLStorage) CreateURL(URLId string, origURL string) {
 	storage.URLMap[URLId] = origURL
 }

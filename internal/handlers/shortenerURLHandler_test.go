@@ -47,27 +47,38 @@ func TestShortenerURLHandler(t *testing.T) {
 			method:  http.MethodPost,
 		},
 		{
-			name: "Test negative request from Post hadler #2",
+			name: "Test negative request from Post hadler #3",
 			want: want{
 				code:        http.StatusBadRequest,
 				contentType: "text/plain; charset=utf-8",
 				shortURL:    "http://localhost:8080/",
 			},
 			request: "/",
-			body:    "https://www.youtube.com/",
-			method:  http.MethodDelete,
+			body:    "/",
+			method:  http.MethodPost,
+		},
+		{
+			name: "Test negative request from Post hadler #4",
+			want: want{
+				code:        http.StatusBadRequest,
+				contentType: "text/plain; charset=utf-8",
+				shortURL:    "http://localhost:8080/",
+			},
+			request: "/",
+			body:    "www.youtube.com",
+			method:  http.MethodPost,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			stor := storage.URLStorage{
+			storage.MapURL = storage.URLStorage{
 				URLMap: make(map[string]string),
 			}
 			body := strings.NewReader(tt.body)
 			request := httptest.NewRequest(tt.method, tt.request, body)
 			w := httptest.NewRecorder()
-			ShortenerURLHandler(w, request, stor)
+			ShortenerURLHandler(w, request)
 
 			result := w.Result()
 

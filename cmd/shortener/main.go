@@ -5,29 +5,23 @@ import (
 
 	"github.com/Dorrrke/shortener-url/cmd/storage"
 	"github.com/Dorrrke/shortener-url/internal/handlers"
+	"github.com/go-chi/chi/v5"
 )
-
-var stor storage.URLStorage
-
-func handleRoot(res http.ResponseWriter, req *http.Request) {
-	if req.Method == http.MethodPost {
-		handlers.ShortenerURLHandler(res, req, stor)
-	}
-	if req.Method == http.MethodGet {
-		handlers.GetOriginalURLHandler(res, req, stor)
-	}
-}
 
 func main() {
 
-	stor = storage.URLStorage{
+	storage.MapURL = storage.URLStorage{
 		URLMap: make(map[string]string),
 	}
 
-	mux := http.NewServeMux()
-	mux.HandleFunc(`/`, handleRoot)
+	r := chi.NewRouter()
 
-	err := http.ListenAndServe(`:8080`, mux)
+	r.Route("/", func(r chi.Router) {
+		r.Post("/", handlers.ShortenerURLHandler)
+		r.Get("/{id}", handlers.GetOriginalURLHandler)
+	})
+
+	err := http.ListenAndServe(`:8080`, r)
 	if err != nil {
 		panic(err)
 	}
