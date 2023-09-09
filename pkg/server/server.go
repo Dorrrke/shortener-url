@@ -47,7 +47,6 @@ func (s *Server) ShortenerURLHandler(res http.ResponseWriter, req *http.Request)
 	}
 	matched, err := regexp.MatchString(`^(https?|ftp|file)://[-a-zA-Z0-9+&@#/%?=~_|!:,.;]*[-a-zA-Z0-9+&@#/%=~_|]`, string(body))
 	if matched && err == nil {
-		s.GetStorage()
 		urlID := strings.Split(uuid.New().String(), "-")[0]
 		var result string
 		if s.ServerConf.ShortURLHostConfig.Host == "" {

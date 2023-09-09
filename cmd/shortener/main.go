@@ -5,17 +5,40 @@ import (
 	"net/http"
 
 	"github.com/Dorrrke/shortener-url/pkg/server"
+	"github.com/caarlos0/env/v6"
 	"github.com/go-chi/chi/v5"
 )
+
+type ValueConfig struct {
+	serverCfg ServerAdrConfig
+	URLCfg    BaseURLConfig
+}
+
+type ServerAdrConfig struct {
+	Addr string `env:"SERVER_ADDRESS,required"`
+}
+type BaseURLConfig struct {
+	Addr string `env:"BASE_URL,required"`
+}
 
 func main() {
 
 	var URLServer server.Server
 	URLServer.New()
+	var cfg ValueConfig
 
 	flag.Var(&URLServer.ServerConf.HostConfig, "a", "address and port to run server")
 	flag.Var(&URLServer.ServerConf.ShortURLHostConfig, "b", "address and port to run short URL")
 	flag.Parse()
+
+	servErr := env.Parse(&cfg.serverCfg)
+	if servErr == nil {
+		URLServer.ServerConf.HostConfig.Set(cfg.serverCfg.Addr)
+	}
+	URLErr := env.Parse(&cfg.URLCfg)
+	if URLErr == nil {
+		URLServer.ServerConf.ShortURLHostConfig.Set(cfg.URLCfg.Addr)
+	}
 	if err := run(URLServer); err != nil {
 		panic(err)
 	}
