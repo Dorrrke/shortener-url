@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"log"
 	"net/http"
 
 	"github.com/Dorrrke/shortener-url/pkg/server"
@@ -17,7 +16,6 @@ func main() {
 	flag.Var(&URLServer.ServerConf.HostConfig, "a", "address and port to run server")
 	flag.Var(&URLServer.ServerConf.ShortURLHostConfig, "b", "address and port to run short URL")
 	flag.Parse()
-	URLServer.GetStorage()
 	if err := run(URLServer); err != nil {
 		panic(err)
 	}
@@ -32,7 +30,6 @@ func run(serv server.Server) error {
 		r.Get("/{id}", serv.GetOriginalURLHandler)
 	})
 
-	log.Print(serv.ServerConf.HostConfig.String())
 	if serv.ServerConf.HostConfig.Host == "" {
 		return http.ListenAndServe(":8080", r)
 	} else {
