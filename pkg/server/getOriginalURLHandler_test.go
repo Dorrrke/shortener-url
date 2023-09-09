@@ -1,4 +1,4 @@
-package handlers
+package server
 
 import (
 	"net/http"
@@ -6,7 +6,6 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/Dorrrke/shortener-url/cmd/storage"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/assert"
@@ -16,9 +15,12 @@ func TestGetOriginalURLHandler(t *testing.T) {
 
 	r := chi.NewRouter()
 
+	var URLServer Server
+	URLServer.New()
+
 	r.Route("/", func(r chi.Router) {
-		r.Post("/", ShortenerURLHandler)
-		r.Get("/{id}", GetOriginalURLHandler)
+		r.Post("/", URLServer.ShortenerURLHandler)
+		r.Get("/{id}", URLServer.GetOriginalURLHandler)
 	})
 	srv := httptest.NewServer(r)
 
@@ -64,11 +66,6 @@ func TestGetOriginalURLHandler(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-
-			storage.MapURL = storage.URLStorage{
-				URLMap: make(map[string]string),
-			}
-
 			postReq := resty.New().R()
 			postReq.Method = http.MethodPost
 			postReq.URL = srv.URL + tt.request
@@ -88,35 +85,6 @@ func TestGetOriginalURLHandler(t *testing.T) {
 			resp, err := getReq.Send()
 			assert.NoError(t, err, "error making HTTP request")
 			assert.Equal(t, tt.want.code, resp.StatusCode())
-			// assert.Equal(t, tt.want.location, resp.Header().Get("Location"))
-
-			// body := strings.NewReader(tt.want.location)
-			// requestPost := httptest.NewRequest(http.MethodPost, tt.request, body)
-			// wPost := httptest.NewRecorder()
-
-			// ShortenerURLHandler(wPost, requestPost)
-			// resultPost := wPost.Result()
-
-			// getResult, err := ioutil.ReadAll(resultPost.Body)
-			// require.NoError(t, err)
-			// err = resultPost.Body.Close()
-			// require.NoError(t, err)
-
-			// tt.request = tt.request + string(getResult)
-
-			// log.Println(tt.request)
-			// log.Println(storage.MapURL)
-
-			// requestGet := httptest.NewRequest(http.MethodGet, tt.request, nil)
-			// wGet := httptest.NewRecorder()
-			// GetOriginalURLHandler(wGet, requestGet)
-
-			// result := wGet.Result()
-
-			// assert.Equal(t, tt.want.code, result.StatusCode)
-			// assert.Equal(t, tt.want.location, result.Header.Get("Location"))
-
-			// result.Body.Close()
 		})
 	}
 

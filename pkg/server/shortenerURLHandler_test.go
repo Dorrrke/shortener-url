@@ -1,4 +1,4 @@
-package handlers
+package server
 
 import (
 	"net/http"
@@ -6,7 +6,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Dorrrke/shortener-url/cmd/storage"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -72,13 +71,13 @@ func TestShortenerURLHandler(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			storage.MapURL = storage.URLStorage{
-				URLMap: make(map[string]string),
-			}
+			var URLServer Server
+			URLServer.New()
+
 			body := strings.NewReader(tt.body)
 			request := httptest.NewRequest(tt.method, tt.request, body)
 			w := httptest.NewRecorder()
-			ShortenerURLHandler(w, request)
+			URLServer.ShortenerURLHandler(w, request)
 
 			result := w.Result()
 
