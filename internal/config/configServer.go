@@ -17,21 +17,40 @@ func (config ConfigServer) String() string {
 }
 
 func (config *ConfigServer) Set(s string) error {
-	matched, err := regexp.MatchString(`^(https?|ftp|file)://[-a-zA-Z0-9+&@#/%?=~_|!:,.;]*[-a-zA-Z0-9+&@#/%=~_|]`, "http://"+s)
+
+	matched, err := regexp.MatchString(`^[-a-zA-Z0-9+&@#/%?=~_|!:,.;]*[-a-zA-Z0-9+&@#/%=~_|]`, s)
 	if err != nil {
 		return err
 	}
 	if matched {
-		fullURL := strings.Split(s, ":")
-		port, err := strconv.Atoi(fullURL[1])
-		if err != nil {
-			return err
+		if strings.Contains(s, "http://") {
+			fullURL := strings.Replace(s, "http://", "", -1)
+			fullURLSplit := strings.Split(fullURL, ":")
+			port, err := strconv.Atoi(fullURLSplit[1])
+			if err != nil {
+				return err
+			}
+			config.Host = fullURLSplit[0]
+			config.Port = port
+			return nil
+		} else {
+			fullURL := strings.Split(s, ":")
+			port, err := strconv.Atoi(fullURL[1])
+			if err != nil {
+				return err
+			}
+			config.Host = fullURL[0]
+			config.Port = port
+			return nil
 		}
-		config.Host = fullURL[0]
-		config.Port = port
-		return nil
 	} else {
-		return errors.New("need address in a form host:port")
+		if s == "" || s == " " {
+			config.Host = "localhost"
+			config.Port = 8080
+			return nil
+		} else {
+			return errors.New("need address in a form host:port")
+		}
 	}
 }
 
@@ -45,19 +64,31 @@ func (config ConfigShortURL) String() string {
 }
 
 func (config *ConfigShortURL) Set(s string) error {
-	matched, err := regexp.MatchString(`^(https?|ftp|file)://[-a-zA-Z0-9+&@#/%?=~_|!:,.;]*[-a-zA-Z0-9+&@#/%=~_|]`, "http://"+s)
+	matched, err := regexp.MatchString(`^[-a-zA-Z0-9+&@#/%?=~_|!:,.;]*[-a-zA-Z0-9+&@#/%=~_|]`, s)
 	if err != nil {
 		return err
 	}
 	if matched {
-		fullURL := strings.Split(s, ":")
-		port, err := strconv.Atoi(fullURL[1])
-		if err != nil {
-			return err
+		if strings.Contains(s, "http://") {
+			fullURL := strings.Replace(s, "http://", "", -1)
+			fullURLSplit := strings.Split(fullURL, ":")
+			port, err := strconv.Atoi(fullURLSplit[1])
+			if err != nil {
+				return err
+			}
+			config.Host = fullURLSplit[0]
+			config.Port = port
+			return nil
+		} else {
+			fullURL := strings.Split(s, ":")
+			port, err := strconv.Atoi(fullURL[1])
+			if err != nil {
+				return err
+			}
+			config.Host = fullURL[0]
+			config.Port = port
+			return nil
 		}
-		config.Host = fullURL[0]
-		config.Port = port
-		return nil
 	} else {
 		if s == "" || s == " " {
 			config.Host = "localhost"
