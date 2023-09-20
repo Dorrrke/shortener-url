@@ -30,9 +30,8 @@ func (s *Server) GetOriginalURLHandler(res http.ResponseWriter, req *http.Reques
 				http.Error(res, "Не корректный запрос", http.StatusBadRequest)
 			}
 			return
-		} else {
-			http.Error(res, "Не корректный запрос", http.StatusBadRequest)
 		}
+		http.Error(res, "Не корректный запрос", http.StatusBadRequest)
 	} else {
 		http.Error(res, "Не корректный запрос", http.StatusBadRequest)
 	}
@@ -59,9 +58,8 @@ func (s *Server) ShortenerURLHandler(res http.ResponseWriter, req *http.Request)
 		res.WriteHeader(http.StatusCreated)
 		res.Write([]byte(result))
 		return
-	} else {
-		http.Error(res, "Не корректный запрос", http.StatusBadRequest)
 	}
+	http.Error(res, "Не корректный запрос", http.StatusBadRequest)
 
 }
 
