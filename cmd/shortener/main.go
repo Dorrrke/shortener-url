@@ -4,9 +4,11 @@ import (
 	"flag"
 	"net/http"
 
+	"github.com/Dorrrke/shortener-url/internal/logger"
 	"github.com/Dorrrke/shortener-url/pkg/server"
 	"github.com/caarlos0/env/v6"
 	"github.com/go-chi/chi/v5"
+	"go.uber.org/zap"
 )
 
 type ValueConfig struct {
@@ -46,11 +48,17 @@ func main() {
 }
 
 func run(serv server.Server) error {
+
+	if err := logger.Initialize(zap.InfoLevel.String()); err != nil {
+		return err
+	}
+
+	logger.Log.Info("Running server")
 	r := chi.NewRouter()
 
 	r.Route("/", func(r chi.Router) {
-		r.Post("/", serv.ShortenerURLHandler)
-		r.Get("/{id}", serv.GetOriginalURLHandler)
+		r.Post("/", logger.WithLogging(serv.ShortenerURLHandler))
+		r.Get("/{id}", logger.WithLogging(serv.GetOriginalURLHandler))
 	})
 
 	if serv.ServerConf.HostConfig.Host == "" {
