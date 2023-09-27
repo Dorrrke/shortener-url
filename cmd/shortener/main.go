@@ -59,6 +59,7 @@ func run(serv server.Server) error {
 	r.Route("/", func(r chi.Router) {
 		r.Post("/", logger.WithLogging(serv.ShortenerURLHandler))
 		r.Get("/{id}", logger.WithLogging(serv.GetOriginalURLHandler))
+		r.Post("/api/shorten", logger.WithLogging(serv.ShortenerJsonURLHandler))
 	})
 
 	if serv.ServerConf.HostConfig.Host == "" {
