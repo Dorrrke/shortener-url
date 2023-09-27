@@ -77,7 +77,7 @@ func TestShortenerJsonURLHandler(t *testing.T) {
 			body := strings.NewReader(tt.body)
 			request := httptest.NewRequest(tt.method, tt.request, body)
 			w := httptest.NewRecorder()
-			URLServer.ShortenerJsonURLHandler(w, request)
+			URLServer.ShortenerJSONURLHandler(w, request)
 
 			result := w.Result()
 

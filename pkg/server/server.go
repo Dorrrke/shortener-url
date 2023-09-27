@@ -73,7 +73,7 @@ func (s *Server) ShortenerURLHandler(res http.ResponseWriter, req *http.Request)
 
 }
 
-func (s *Server) ShortenerJsonURLHandler(res http.ResponseWriter, req *http.Request) {
+func (s *Server) ShortenerJSONURLHandler(res http.ResponseWriter, req *http.Request) {
 
 	dec := json.NewDecoder(req.Body)
 	var modelURL RequestURLJson
@@ -94,10 +94,10 @@ func (s *Server) ShortenerJsonURLHandler(res http.ResponseWriter, req *http.Requ
 		res.Header().Set("Content-Type", "application/json")
 		res.WriteHeader(http.StatusCreated)
 		enc := json.NewEncoder(res)
-		resultJson := ResponseURLJson{
+		resultJSON := ResponseURLJson{
 			result,
 		}
-		if err := enc.Encode(resultJson); err != nil {
+		if err := enc.Encode(resultJSON); err != nil {
 			logger.Log.Debug("error encoding responce", zap.Error(err))
 		}
 		return
