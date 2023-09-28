@@ -57,9 +57,9 @@ func run(serv server.Server) error {
 	r := chi.NewRouter()
 
 	r.Route("/", func(r chi.Router) {
-		r.Post("/", logger.WithLogging(serv.ShortenerURLHandler))
-		r.Get("/{id}", logger.WithLogging(serv.GetOriginalURLHandler))
-		r.Post("/api/shorten", logger.WithLogging(serv.ShortenerJSONURLHandler))
+		r.Post("/", logger.WithLogging(server.GzipMiddleware(serv.ShortenerURLHandler)))
+		r.Get("/{id}", logger.WithLogging(server.GzipMiddleware(serv.GetOriginalURLHandler)))
+		r.Post("/api/shorten", logger.WithLogging(server.GzipMiddleware(serv.ShortenerJSONURLHandler)))
 	})
 
 	if serv.ServerConf.HostConfig.Host == "" {
