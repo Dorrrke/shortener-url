@@ -72,8 +72,28 @@ func (c *gzipReader) Close() error {
 
 func GzipMiddleware(h http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Print(r.Header.Get("Content-Encoding"))
 		if !strings.Contains(r.Header.Get("Content-Encoding"), "gzip") {
+			if strings.Contains(r.Header.Get("Content-Type"), "application/json") || strings.Contains(r.Header.Get("Content-Type"), "text/html") {
+				if !strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
+					h.ServeHTTP(w, r)
+					return
+				}
+				gzipWriter := newGzipWriter(w)
+				w = gzipWriter
+				defer gzipWriter.Close()
+				h.ServeHTTP(w, r)
+				return
+			}
+			h.ServeHTTP(w, r)
+			return
+		}
+		gzipReader, err := newGzipReader(r.Body)
+		if err != nil {
+			log.Print(err.Error())
+			return
+		}
+		r.Body = gzipReader
+		if strings.Contains(r.Header.Get("Content-Type"), "application/json") || strings.Contains(r.Header.Get("Content-Type"), "text/html") {
 			if !strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
 				h.ServeHTTP(w, r)
 				return
@@ -84,19 +104,6 @@ func GzipMiddleware(h http.HandlerFunc) http.HandlerFunc {
 			h.ServeHTTP(w, r)
 			return
 		}
-		gzipReader, err := newGzipReader(r.Body)
-		if err != nil {
-			log.Print(err.Error())
-			return
-		}
-		r.Body = gzipReader
-		if !strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
-			h.ServeHTTP(w, r)
-			return
-		}
-		gzipWriter := newGzipWriter(w)
-		w = gzipWriter
-		defer gzipWriter.Close()
 		h.ServeHTTP(w, r)
 	}
 }
