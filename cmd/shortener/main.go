@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"log"
 	"net/http"
 
 	"github.com/Dorrrke/shortener-url/internal/logger"
@@ -12,8 +13,9 @@ import (
 )
 
 type ValueConfig struct {
-	serverCfg ServerAdrConfig
-	URLCfg    BaseURLConfig
+	serverCfg     ServerAdrConfig
+	URLCfg        BaseURLConfig
+	storageRestor StorageRestor
 }
 
 type ServerAdrConfig struct {
@@ -22,16 +24,22 @@ type ServerAdrConfig struct {
 type BaseURLConfig struct {
 	Addr string `env:"BASE_URL,required"`
 }
+type StorageRestor struct {
+	FilePathString string `env:"FILE_STORAGE_PATH,required"`
+}
 
 func main() {
 
 	var URLServer server.Server
 	URLServer.New()
 	var cfg ValueConfig
+	var fileName string
 
 	flag.Var(&URLServer.ServerConf.HostConfig, "a", "address and port to run server")
 	flag.Var(&URLServer.ServerConf.ShortURLHostConfig, "b", "address and port to run short URL")
+	flag.StringVar(&fileName, "f", "", "storage file path")
 	flag.Parse()
+	URLServer.AddFilePath(fileName)
 
 	servErr := env.Parse(&cfg.serverCfg)
 	if servErr == nil {
@@ -41,6 +49,16 @@ func main() {
 	if URLErr == nil {
 		URLServer.ServerConf.ShortURLHostConfig.Set(cfg.URLCfg.Addr)
 	}
+	filePathErr := env.Parse(&cfg.storageRestor)
+	if filePathErr == nil {
+		log.Print("env")
+		URLServer.AddFilePath(cfg.storageRestor.FilePathString)
+	}
+	if URLServer.GetFilePath() == "" {
+		log.Print("default")
+		URLServer.AddFilePath("D:/Git_repos/shortener-url/tmp/short-url-db.json")
+	}
+	URLServer.RestorStorage()
 	if err := run(URLServer); err != nil {
 		panic(err)
 	}
