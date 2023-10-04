@@ -49,6 +49,7 @@ func main() {
 	if URLErr == nil {
 		URLServer.ServerConf.ShortURLHostConfig.Set(cfg.URLCfg.Addr)
 	}
+
 	filePathErr := env.Parse(&cfg.storageRestor)
 	if filePathErr == nil {
 		log.Print("env")
@@ -56,8 +57,9 @@ func main() {
 	}
 	if URLServer.GetFilePath() == "" {
 		log.Print("default")
-		URLServer.AddFilePath("D:/Git_repos/shortener-url/tmp/short-url-db.json")
+		URLServer.AddFilePath("short-url-db.json")
 	}
+
 	URLServer.RestorStorage()
 	if err := run(URLServer); err != nil {
 		panic(err)

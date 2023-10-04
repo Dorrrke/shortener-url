@@ -7,8 +7,9 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"regexp"
 	"strings"
+
+	"github.com/pkg/errors"
 
 	"github.com/Dorrrke/shortener-url/internal/config"
 	"github.com/Dorrrke/shortener-url/internal/logger"
@@ -62,8 +63,7 @@ func (s *Server) ShortenerURLHandler(res http.ResponseWriter, req *http.Request)
 		http.Error(res, err.Error(), 500)
 		return
 	}
-	matched, err := regexp.MatchString(`^(https?|ftp|file)://[-a-zA-Z0-9+&@#/%?=~_|!:,.;]*[-a-zA-Z0-9+&@#/%=~_|]`, string(body))
-	if matched && err == nil {
+	if strings.Contains(string(body), "http://") || strings.Contains(string(body), "https://") {
 		urlID := strings.Split(uuid.New().String(), "-")[0]
 		var result string
 		if s.ServerConf.ShortURLHostConfig.Host == "" {
@@ -72,7 +72,9 @@ func (s *Server) ShortenerURLHandler(res http.ResponseWriter, req *http.Request)
 			result = "http://" + s.ServerConf.ShortURLHostConfig.String() + "/" + urlID
 		}
 		s.storage.CreateURL(urlID, string(body))
-		writeURL(s.filePath, restorURL{urlID, string(body)})
+		if err := writeURL(s.filePath, restorURL{urlID, string(body)}); err != nil {
+			logger.Log.Debug("cannot save URL in file", zap.Error(err))
+		}
 		res.Header().Set("content-type", "text/plain")
 		res.WriteHeader(http.StatusCreated)
 		res.Write([]byte(result))
@@ -90,8 +92,7 @@ func (s *Server) ShortenerJSONURLHandler(res http.ResponseWriter, req *http.Requ
 	if err := dec.Decode(&modelURL); err != nil {
 		logger.Log.Debug("cannot decod boby json", zap.Error(err))
 	}
-	matched, err := regexp.MatchString(`^(https?|ftp|file)://[-a-zA-Z0-9+&@#/%?=~_|!:,.;]*[-a-zA-Z0-9+&@#/%=~_|]`, modelURL.URLAddres)
-	if matched && err == nil {
+	if strings.Contains(string(modelURL.URLAddres), "http://") || strings.Contains(string(modelURL.URLAddres), "https://") {
 		urlID := strings.Split(uuid.New().String(), "-")[0]
 		var result string
 		if s.ServerConf.ShortURLHostConfig.Host == "" {
@@ -100,7 +101,9 @@ func (s *Server) ShortenerJSONURLHandler(res http.ResponseWriter, req *http.Requ
 			result = "http://" + s.ServerConf.ShortURLHostConfig.String() + "/" + urlID
 		}
 		s.storage.CreateURL(urlID, modelURL.URLAddres)
-		writeURL(s.filePath, restorURL{urlID, modelURL.URLAddres})
+		if err := writeURL(s.filePath, restorURL{urlID, modelURL.URLAddres}); err != nil {
+			logger.Log.Debug("cannot save URL in file", zap.Error(err))
+		}
 		res.Header().Set("Content-Type", "application/json")
 		res.WriteHeader(http.StatusCreated)
 		enc := json.NewEncoder(res)
@@ -109,10 +112,10 @@ func (s *Server) ShortenerJSONURLHandler(res http.ResponseWriter, req *http.Requ
 		}
 		if err := enc.Encode(resultJSON); err != nil {
 			logger.Log.Debug("error encoding responce", zap.Error(err))
+			http.Error(res, "Не корректный запрос", http.StatusInternalServerError)
 		}
 		return
 	}
-	log.Print(matched)
 	http.Error(res, "Не корректный запрос", http.StatusBadRequest)
 
 }
@@ -163,13 +166,13 @@ func writeURL(fileName string, lastURL restorURL) error {
 	writer := bufio.NewWriter(file)
 	data, err := json.Marshal(&lastURL)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "encode last url")
 	}
 	if _, err := writer.Write(data); err != nil {
-		return err
+		return errors.Wrap(err, "write if file last url")
 	}
 	if err := writer.WriteByte('\n'); err != nil {
-		return err
+		return errors.Wrap(err, "write in file '\n'")
 	}
 	writer.Flush()
 	file.Close()
