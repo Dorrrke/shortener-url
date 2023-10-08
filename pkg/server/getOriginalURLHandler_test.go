@@ -3,7 +3,7 @@ package server
 import (
 	"net/http"
 	"net/http/httptest"
-	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/go-chi/chi/v5"
@@ -73,12 +73,12 @@ func TestGetOriginalURLHandler(t *testing.T) {
 			respPost, err := postReq.Send()
 			assert.NoError(t, err, "error making HTTP request")
 			var request string
-			matched, err := regexp.MatchString(`^(https?|ftp|file)://[-a-zA-Z0-9+&@#/%?=~_|!:,.;]*[-a-zA-Z0-9+&@#/%=~_|]`, string(respPost.Body()))
-			if matched && err == nil {
+			if strings.HasPrefix(string(respPost.Body()), "http://") {
 				request = string(respPost.Body())
 			} else {
 				request = srv.URL + "/"
 			}
+
 			getReq := resty.New().R()
 			getReq.Method = tt.method
 			getReq.URL = request
