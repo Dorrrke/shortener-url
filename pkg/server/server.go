@@ -73,8 +73,8 @@ func (s *Server) ShortenerURLHandler(res http.ResponseWriter, req *http.Request)
 		}
 		s.storage.CreateURL(urlID, string(body))
 		if err := writeURL(s.filePath, restorURL{urlID, string(body)}); err != nil {
-			logger.Log.Debug("cannot save URL in file", zap.Error(err))
-			http.Error(res, "Не корректный запрос", http.StatusInternalServerError)
+			logger.Log.Debug("cannot save URL in file", zap.Error(err)) //прокидывать экзепляр логера в сервер, что бы не пользоваться стандартным
+			// http.Error(res, "Не корректный запрос", http.StatusInternalServerError) нужно передавать ошибку пользователю
 		}
 		res.Header().Set("content-type", "text/plain")
 		res.WriteHeader(http.StatusCreated)
@@ -103,8 +103,8 @@ func (s *Server) ShortenerJSONURLHandler(res http.ResponseWriter, req *http.Requ
 		}
 		s.storage.CreateURL(urlID, modelURL.URLAddres)
 		if err := writeURL(s.filePath, restorURL{urlID, modelURL.URLAddres}); err != nil {
-			logger.Log.Debug("cannot save URL in file", zap.Error(err))
-			http.Error(res, "Не корректный запрос", http.StatusInternalServerError)
+			logger.Log.Debug("cannot save URL in file", zap.Error(err)) //прокидывать экзепляр логера в сервер, что бы не пользоваться стандартным
+			// http.Error(res, "Не корректный запрос", http.StatusInternalServerError) нужно передавать ошибку пользователю
 		}
 		res.Header().Set("Content-Type", "application/json")
 		res.WriteHeader(http.StatusCreated)
