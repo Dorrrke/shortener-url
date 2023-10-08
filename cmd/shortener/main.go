@@ -12,6 +12,8 @@ import (
 	"go.uber.org/zap"
 )
 
+const FILE_PATH string = "short-url-db.json" // Вынести эту константу в конфиг
+
 type ValueConfig struct {
 	serverCfg     ServerAdrConfig
 	URLCfg        BaseURLConfig
@@ -57,7 +59,7 @@ func main() {
 	}
 	if URLServer.GetFilePath() == "" {
 		log.Print("default")
-		URLServer.AddFilePath("short-url-db.json")
+		URLServer.AddFilePath(FILE_PATH)
 	}
 
 	URLServer.RestorStorage()

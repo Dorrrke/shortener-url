@@ -63,7 +63,7 @@ func (s *Server) ShortenerURLHandler(res http.ResponseWriter, req *http.Request)
 		http.Error(res, err.Error(), 500)
 		return
 	}
-	if strings.Contains(string(body), "http://") || strings.Contains(string(body), "https://") {
+	if strings.HasPrefix(string(body), "http://") || strings.HasPrefix(string(body), "https://") {
 		urlID := strings.Split(uuid.New().String(), "-")[0]
 		var result string
 		if s.ServerConf.ShortURLHostConfig.Host == "" {
@@ -74,6 +74,7 @@ func (s *Server) ShortenerURLHandler(res http.ResponseWriter, req *http.Request)
 		s.storage.CreateURL(urlID, string(body))
 		if err := writeURL(s.filePath, restorURL{urlID, string(body)}); err != nil {
 			logger.Log.Debug("cannot save URL in file", zap.Error(err))
+			http.Error(res, "Не корректный запрос", http.StatusInternalServerError)
 		}
 		res.Header().Set("content-type", "text/plain")
 		res.WriteHeader(http.StatusCreated)
@@ -92,7 +93,7 @@ func (s *Server) ShortenerJSONURLHandler(res http.ResponseWriter, req *http.Requ
 	if err := dec.Decode(&modelURL); err != nil {
 		logger.Log.Debug("cannot decod boby json", zap.Error(err))
 	}
-	if strings.Contains(string(modelURL.URLAddres), "http://") || strings.Contains(string(modelURL.URLAddres), "https://") {
+	if strings.HasPrefix(string(modelURL.URLAddres), "http://") || strings.HasPrefix(string(modelURL.URLAddres), "https://") {
 		urlID := strings.Split(uuid.New().String(), "-")[0]
 		var result string
 		if s.ServerConf.ShortURLHostConfig.Host == "" {
@@ -103,6 +104,7 @@ func (s *Server) ShortenerJSONURLHandler(res http.ResponseWriter, req *http.Requ
 		s.storage.CreateURL(urlID, modelURL.URLAddres)
 		if err := writeURL(s.filePath, restorURL{urlID, modelURL.URLAddres}); err != nil {
 			logger.Log.Debug("cannot save URL in file", zap.Error(err))
+			http.Error(res, "Не корректный запрос", http.StatusInternalServerError)
 		}
 		res.Header().Set("Content-Type", "application/json")
 		res.WriteHeader(http.StatusCreated)
