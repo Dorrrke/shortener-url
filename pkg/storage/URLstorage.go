@@ -35,10 +35,7 @@ func (storage URLStorage) CheckMapKey(URLId string) bool {
 	}
 }
 
-func (storage URLStorage) CheckDBConnect() error {
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+func (storage URLStorage) CheckDBConnect(ctx context.Context) error {
 	if err := storage.DB.Ping(ctx); err != nil {
 		return errors.Wrap(err, "Error while checking connection")
 	}

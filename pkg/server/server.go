@@ -2,12 +2,14 @@ package server
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"io"
 	"log"
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/pkg/errors"
@@ -125,7 +127,9 @@ func (s *Server) ShortenerJSONURLHandler(res http.ResponseWriter, req *http.Requ
 }
 
 func (s *Server) CheckDBConnectionHandler(res http.ResponseWriter, req *http.Request) {
-	if err := s.storage.CheckDBConnect(); err != nil {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := s.storage.CheckDBConnect(ctx); err != nil {
 		logger.Log.Debug("Error check connection")
 		res.WriteHeader(http.StatusInternalServerError)
 	}
