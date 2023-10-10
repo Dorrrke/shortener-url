@@ -2,6 +2,7 @@ package server
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"io"
 	"log"
@@ -9,6 +10,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/pkg/errors"
 
 	"github.com/Dorrrke/shortener-url/internal/config"
@@ -58,6 +60,7 @@ func (s *Server) GetOriginalURLHandler(res http.ResponseWriter, req *http.Reques
 
 func (s *Server) ShortenerURLHandler(res http.ResponseWriter, req *http.Request) {
 
+	logger.Log.Info("Test logger in handler")
 	body, err := io.ReadAll(req.Body)
 	if err != nil {
 		http.Error(res, err.Error(), 500)
@@ -122,6 +125,14 @@ func (s *Server) ShortenerJSONURLHandler(res http.ResponseWriter, req *http.Requ
 
 }
 
+func (s *Server) CheckDBConnectionHandler(res http.ResponseWriter, req *http.Request) {
+	if err := s.storage.CheckDBConnect(context.Background()); err != nil {
+		logger.Log.Debug("Error check connection")
+		res.WriteHeader(http.StatusInternalServerError)
+	}
+	res.WriteHeader(http.StatusOK)
+}
+
 func (s *Server) New() {
 	s.storage.URLMap = make(map[string]string)
 }
@@ -179,4 +190,8 @@ func writeURL(fileName string, lastURL restorURL) error {
 	writer.Flush()
 	file.Close()
 	return nil
+}
+
+func (s *Server) AddDB(db *pgx.Conn) {
+	s.storage.DB = db
 }

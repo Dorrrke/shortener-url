@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"log"
 	"net/http"
@@ -9,6 +10,7 @@ import (
 	"github.com/Dorrrke/shortener-url/pkg/server"
 	"github.com/caarlos0/env/v6"
 	"github.com/go-chi/chi/v5"
+	"github.com/jackc/pgx/v5"
 	"go.uber.org/zap"
 )
 
@@ -18,6 +20,7 @@ type ValueConfig struct {
 	serverCfg     ServerAdrConfig
 	URLCfg        BaseURLConfig
 	storageRestor StorageRestor
+	dataBaseDsn   DataBaseConf
 }
 
 type ServerAdrConfig struct {
@@ -29,9 +32,15 @@ type BaseURLConfig struct {
 type StorageRestor struct {
 	FilePathString string `env:"FILE_STORAGE_PATH,required"`
 }
+type DataBaseConf struct {
+	DbDSN string `env:"DATABASE_DSN,required"`
+}
 
 func main() {
 
+	if err := logger.Initialize(zap.InfoLevel.String()); err != nil {
+		panic(err)
+	}
 	var URLServer server.Server
 	URLServer.New()
 	var cfg ValueConfig
@@ -40,6 +49,7 @@ func main() {
 	flag.Var(&URLServer.ServerConf.HostConfig, "a", "address and port to run server")
 	flag.Var(&URLServer.ServerConf.ShortURLHostConfig, "b", "address and port to run short URL")
 	flag.StringVar(&fileName, "f", "", "storage file path")
+	flag.StringVar(&cfg.dataBaseDsn.DbDSN, "d", "", "databse addr")
 	flag.Parse()
 	URLServer.AddFilePath(fileName)
 
@@ -50,6 +60,10 @@ func main() {
 	URLErr := env.Parse(&cfg.URLCfg)
 	if URLErr == nil {
 		URLServer.ServerConf.ShortURLHostConfig.Set(cfg.URLCfg.Addr)
+	}
+	dbDsnErr := env.Parse(&cfg.dataBaseDsn)
+	if dbDsnErr != nil {
+		logger.Log.Info("Enviroment var is not set")
 	}
 
 	filePathErr := env.Parse(&cfg.storageRestor)
@@ -62,6 +76,15 @@ func main() {
 		URLServer.AddFilePath(FilePath)
 	}
 
+	conn, err := pgx.Connect(context.Background(), cfg.dataBaseDsn.DbDSN)
+	if err != nil {
+		logger.Log.Error("Error wile init db driver")
+		panic(err)
+	}
+	defer conn.Close(context.Background())
+
+	URLServer.AddDB(conn)
+
 	URLServer.RestorStorage()
 	if err := run(URLServer); err != nil {
 		panic(err)
@@ -71,10 +94,6 @@ func main() {
 
 func run(serv server.Server) error {
 
-	if err := logger.Initialize(zap.InfoLevel.String()); err != nil {
-		return err
-	}
-
 	logger.Log.Info("Running server")
 	r := chi.NewRouter()
 
@@ -82,6 +101,7 @@ func run(serv server.Server) error {
 		r.Post("/", logger.WithLogging(server.GzipMiddleware(serv.ShortenerURLHandler)))
 		r.Get("/{id}", logger.WithLogging(server.GzipMiddleware(serv.GetOriginalURLHandler)))
 		r.Post("/api/shorten", logger.WithLogging(server.GzipMiddleware(serv.ShortenerJSONURLHandler)))
+		r.Get("/ping", logger.WithLogging(server.GzipMiddleware(serv.CheckDBConnectionHandler)))
 	})
 
 	if serv.ServerConf.HostConfig.Host == "" {

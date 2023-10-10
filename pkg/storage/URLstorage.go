@@ -1,5 +1,13 @@
 package storage
 
+import (
+	"context"
+	"time"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/pkg/errors"
+)
+
 type URLCreatorGetter interface {
 	CreateURL(URLId string, origURL string)
 	GetOrigURL(URLId string) string
@@ -8,6 +16,7 @@ type URLCreatorGetter interface {
 
 type URLStorage struct {
 	URLMap map[string]string
+	DB     *pgx.Conn
 }
 
 func (storage *URLStorage) CreateURL(URLId string, origURL string) {
@@ -25,4 +34,14 @@ func (storage URLStorage) CheckMapKey(URLId string) bool {
 	} else {
 		return false
 	}
+}
+
+func (s URLStorage) CheckDBConnect(ctx context.Context) error {
+	context, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	if err := s.DB.Ping(context); err != nil {
+		return errors.Wrap(err, "Error while checking connection")
+	}
+	return nil
 }
