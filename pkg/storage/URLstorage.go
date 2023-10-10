@@ -2,7 +2,6 @@ package storage
 
 import (
 	"context"
-	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/pkg/errors"
@@ -37,10 +36,8 @@ func (storage URLStorage) CheckMapKey(URLId string) bool {
 }
 
 func (storage URLStorage) CheckDBConnect(ctx context.Context) error {
-	context, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
 
-	if err := storage.DB.Ping(context); err != nil {
+	if err := storage.DB.Ping(ctx); err != nil {
 		return errors.Wrap(err, "Error while checking connection")
 	}
 	return nil
