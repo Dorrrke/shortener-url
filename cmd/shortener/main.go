@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"flag"
 	"log"
 	"net/http"
@@ -10,7 +9,6 @@ import (
 	"github.com/Dorrrke/shortener-url/pkg/server"
 	"github.com/caarlos0/env/v6"
 	"github.com/go-chi/chi/v5"
-	"github.com/jackc/pgx/v5"
 	"go.uber.org/zap"
 )
 
@@ -45,11 +43,12 @@ func main() {
 	URLServer.New()
 	var cfg ValueConfig
 	var fileName string
+	var DBaddr string
 
 	flag.Var(&URLServer.ServerConf.HostConfig, "a", "address and port to run server")
 	flag.Var(&URLServer.ServerConf.ShortURLHostConfig, "b", "address and port to run short URL")
 	flag.StringVar(&fileName, "f", "", "storage file path")
-	flag.StringVar(&cfg.dataBaseDsn.DBDSN, "d", "", "databse addr")
+	flag.StringVar(&DBaddr, "d", "", "databse addr")
 	flag.Parse()
 	URLServer.AddFilePath(fileName)
 
@@ -63,14 +62,13 @@ func main() {
 	}
 	dbDsnErr := env.Parse(&cfg.dataBaseDsn)
 	if dbDsnErr == nil {
-		conn, err := pgx.Connect(context.Background(), cfg.dataBaseDsn.DBDSN)
-		if err != nil {
-			log.Printf("Error wile init db driver: %v", err.Error())
+		if err := URLServer.InitBD(cfg.dataBaseDsn.DBDSN); err != nil {
 			panic(err)
 		}
-		defer conn.Close(context.Background())
-
-		URLServer.AddDB(conn)
+	} else {
+		if err := URLServer.InitBD(DBaddr); err != nil {
+			panic(err)
+		}
 	}
 
 	filePathErr := env.Parse(&cfg.storageRestor)

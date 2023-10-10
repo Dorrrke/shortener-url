@@ -127,7 +127,7 @@ func (s *Server) ShortenerJSONURLHandler(res http.ResponseWriter, req *http.Requ
 }
 
 func (s *Server) CheckDBConnectionHandler(res http.ResponseWriter, req *http.Request) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 	if err := s.storage.CheckDBConnect(ctx); err != nil {
 		logger.Log.Debug("Error check connection")
@@ -142,6 +142,17 @@ func (s *Server) New() {
 
 func (s *Server) AddStorage(stor storage.URLStorage) {
 	s.storage = stor
+}
+
+func (s *Server) InitBD(DBaddr string) error {
+	conn, err := pgx.Connect(context.Background(), DBaddr)
+	if err != nil {
+		log.Printf("Error wile init db driver: %v", err.Error())
+		return errors.Wrap(err, "Error to connect db")
+	}
+	s.storage.DB = conn
+	defer conn.Close(context.Background())
+	return nil
 }
 
 func (s *Server) GetStorage() {
