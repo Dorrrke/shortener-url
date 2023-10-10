@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"log"
 	"net/http"
@@ -9,6 +10,7 @@ import (
 	"github.com/Dorrrke/shortener-url/pkg/server"
 	"github.com/caarlos0/env/v6"
 	"github.com/go-chi/chi/v5"
+	"github.com/jackc/pgx/v5"
 	"go.uber.org/zap"
 )
 
@@ -65,11 +67,15 @@ func main() {
 		if err := URLServer.InitBD(cfg.dataBaseDsn.DBDSN); err != nil {
 			panic(err)
 		}
-	} else {
-		if err := URLServer.InitBD(DBaddr); err != nil {
-			panic(err)
-		}
 	}
+
+	conn, err := pgx.Connect(context.Background(), cfg.dataBaseDsn.DBDSN)
+	if err != nil {
+		log.Printf("Error wile init db driver: %v", err.Error())
+		panic(err)
+	}
+	URLServer.AddDB(conn)
+	defer conn.Close(context.Background())
 
 	filePathErr := env.Parse(&cfg.storageRestor)
 	if filePathErr == nil {

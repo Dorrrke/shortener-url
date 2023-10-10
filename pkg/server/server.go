@@ -127,11 +127,12 @@ func (s *Server) ShortenerJSONURLHandler(res http.ResponseWriter, req *http.Requ
 }
 
 func (s *Server) CheckDBConnectionHandler(res http.ResponseWriter, req *http.Request) {
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := s.storage.CheckDBConnect(ctx); err != nil {
-		logger.Log.Debug("Error check connection")
+		log.Printf("Error check connection: %v", err.Error())
 		res.WriteHeader(http.StatusInternalServerError)
+		return
 	}
 	res.WriteHeader(http.StatusOK)
 }
