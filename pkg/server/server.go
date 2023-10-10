@@ -2,7 +2,6 @@ package server
 
 import (
 	"bufio"
-	"context"
 	"encoding/json"
 	"io"
 	"log"
@@ -126,7 +125,7 @@ func (s *Server) ShortenerJSONURLHandler(res http.ResponseWriter, req *http.Requ
 }
 
 func (s *Server) CheckDBConnectionHandler(res http.ResponseWriter, req *http.Request) {
-	if err := s.storage.CheckDBConnect(context.Background()); err != nil {
+	if err := s.storage.CheckDBConnect(); err != nil {
 		logger.Log.Debug("Error check connection")
 		res.WriteHeader(http.StatusInternalServerError)
 	}
