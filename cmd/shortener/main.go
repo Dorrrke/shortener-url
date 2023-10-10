@@ -33,7 +33,7 @@ type StorageRestor struct {
 	FilePathString string `env:"FILE_STORAGE_PATH,required"`
 }
 type DataBaseConf struct {
-	DbDSN string `env:"DATABASE_DSN,required"`
+	DBDSN string `env:"DATABASE_DSN,required"`
 }
 
 func main() {
@@ -49,7 +49,7 @@ func main() {
 	flag.Var(&URLServer.ServerConf.HostConfig, "a", "address and port to run server")
 	flag.Var(&URLServer.ServerConf.ShortURLHostConfig, "b", "address and port to run short URL")
 	flag.StringVar(&fileName, "f", "", "storage file path")
-	flag.StringVar(&cfg.dataBaseDsn.DbDSN, "d", "", "databse addr")
+	flag.StringVar(&cfg.dataBaseDsn.DBDSN, "d", "", "databse addr")
 	flag.Parse()
 	URLServer.AddFilePath(fileName)
 
@@ -62,8 +62,15 @@ func main() {
 		URLServer.ServerConf.ShortURLHostConfig.Set(cfg.URLCfg.Addr)
 	}
 	dbDsnErr := env.Parse(&cfg.dataBaseDsn)
-	if dbDsnErr != nil {
-		logger.Log.Info("Enviroment var is not set")
+	if dbDsnErr == nil {
+		conn, err := pgx.Connect(context.Background(), cfg.dataBaseDsn.DBDSN)
+		if err != nil {
+			logger.Log.Error("Error wile init db driver")
+			panic(err)
+		}
+		defer conn.Close(context.Background())
+
+		URLServer.AddDB(conn)
 	}
 
 	filePathErr := env.Parse(&cfg.storageRestor)
@@ -75,15 +82,6 @@ func main() {
 		log.Print("default")
 		URLServer.AddFilePath(FilePath)
 	}
-
-	conn, err := pgx.Connect(context.Background(), cfg.dataBaseDsn.DbDSN)
-	if err != nil {
-		logger.Log.Error("Error wile init db driver")
-		panic(err)
-	}
-	defer conn.Close(context.Background())
-
-	URLServer.AddDB(conn)
 
 	URLServer.RestorStorage()
 	if err := run(URLServer); err != nil {
