@@ -72,7 +72,6 @@ func main() {
 	conn, err := pgx.Connect(context.Background(), cfg.dataBaseDsn.DBDSN)
 	if err != nil {
 		log.Printf("Error wile init db driver: %v", err.Error())
-		panic(err)
 	}
 	URLServer.AddDB(conn)
 	defer conn.Close(context.Background())
