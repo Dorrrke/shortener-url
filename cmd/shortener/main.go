@@ -65,7 +65,7 @@ func main() {
 	if dbDsnErr == nil {
 		conn, err := pgx.Connect(context.Background(), cfg.dataBaseDsn.DBDSN)
 		if err != nil {
-			logger.Log.Error("Error wile init db driver")
+			log.Printf("Error wile init db driver: %v", err.Error())
 			panic(err)
 		}
 		defer conn.Close(context.Background())
