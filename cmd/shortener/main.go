@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"log"
 	"net/http"
@@ -9,6 +10,7 @@ import (
 	"github.com/Dorrrke/shortener-url/pkg/server"
 	"github.com/caarlos0/env/v6"
 	"github.com/go-chi/chi/v5"
+	"github.com/jackc/pgx/v5"
 	"go.uber.org/zap"
 )
 
@@ -62,18 +64,26 @@ func main() {
 	}
 	dbDsnErr := env.Parse(&cfg.dataBaseDsn)
 	if dbDsnErr == nil {
-		if err := URLServer.InitBD(cfg.dataBaseDsn.DBDSN); err != nil {
-			log.Printf("Error wile init db driver: %v", err.Error())
+		conn, err := pgx.Connect(context.Background(), cfg.dataBaseDsn.DBDSN)
+		if err != nil {
+			logger.Log.Error("Error wile init db driver: " + err.Error())
 			URLServer.AddDB(nil)
+		} else {
+			URLServer.AddDB(conn)
+			defer conn.Close(context.Background())
 		}
 	}
 	logger.Log.Info("DataBase URL env: " + cfg.dataBaseDsn.DBDSN)
 	logger.Log.Info("DataBase URL flag: " + DBaddr)
 
 	if cfg.dataBaseDsn.DBDSN == "" {
-		if err := URLServer.InitBD(DBaddr); err != nil {
+		conn, err := pgx.Connect(context.Background(), DBaddr)
+		if err != nil {
 			logger.Log.Error("Error wile init db driver: " + err.Error())
 			URLServer.AddDB(nil)
+		} else {
+			URLServer.AddDB(conn)
+			defer conn.Close(context.Background())
 		}
 	}
 
