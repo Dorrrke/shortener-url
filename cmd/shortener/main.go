@@ -68,6 +68,7 @@ func main() {
 			panic(err)
 		}
 	}
+	logger.Log.Info("DataBase URL: " + cfg.dataBaseDsn.DBDSN)
 
 	conn, err := pgx.Connect(context.Background(), cfg.dataBaseDsn.DBDSN)
 	if err != nil {
