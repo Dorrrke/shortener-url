@@ -67,7 +67,8 @@ func main() {
 			URLServer.AddDB(nil)
 		}
 	}
-	logger.Log.Info("DataBase URL: " + cfg.dataBaseDsn.DBDSN)
+	logger.Log.Info("DataBase URL env: " + cfg.dataBaseDsn.DBDSN)
+	logger.Log.Info("DataBase URL flag: " + DBaddr)
 
 	if cfg.dataBaseDsn.DBDSN == "" {
 		if err := URLServer.InitBD(DBaddr); err != nil {
