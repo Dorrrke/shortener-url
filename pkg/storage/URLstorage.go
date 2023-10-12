@@ -57,7 +57,7 @@ func (storage URLStorage) CreateTable(ctx context.Context) error {
 }
 
 func (storage URLStorage) InsertURL(ctx context.Context, originalURL string, shortURL string) error {
-	_, err := storage.DB.Exec(ctx, "INSERT INTO url_database.short_urls (original, short) values ($1, $2)", originalURL, shortURL)
+	_, err := storage.DB.Exec(ctx, "INSERT INTO short_urls (original, short) values ($1, $2)", originalURL, shortURL)
 	if err != nil {
 		return errors.Wrap(err, "Error while inserting row in db")
 	}
@@ -65,7 +65,7 @@ func (storage URLStorage) InsertURL(ctx context.Context, originalURL string, sho
 }
 
 func (storage URLStorage) GetURLByShortURL(ctx context.Context, shotURL string) (string, error) {
-	rows := storage.DB.QueryRow(ctx, "SELECT original FROM url_database.short_urls where short = $1", shotURL)
+	rows := storage.DB.QueryRow(ctx, "SELECT original FROM short_urls where short = $1", shotURL)
 	// if err != nil {
 	// 	return "", errors.Wrap(err, "Error when getting row from db")
 	// }
