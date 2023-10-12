@@ -3,7 +3,6 @@ package storage
 import (
 	"context"
 
-	"github.com/Dorrrke/shortener-url/internal/logger"
 	"github.com/jackc/pgx/v5"
 	"github.com/pkg/errors"
 )
@@ -50,18 +49,17 @@ func (storage URLStorage) CreateTable(ctx context.Context) error {
 		original character(255) NOT NULL,
 		short character(255) NOT NULL
 	)`
-	result, err := storage.DB.Exec(ctx, createTableStr)
+	_, err := storage.DB.Exec(ctx, createTableStr)
 	if err != nil {
 		return errors.Wrap(err, "Error whitle creating table")
 	}
-	logger.Log.Info(string(result.RowsAffected()) + " _ " + result.String())
 	return nil
 }
 
 func (storage URLStorage) InsertURL(ctx context.Context, originalURL string, shortURL string) error {
-	result, err := storage.DB.Exec(ctx, "INSERT INTO url_database.short_urls (original, short) values ($1, $2)", originalURL, shortURL)
+	_, err := storage.DB.Exec(ctx, "INSERT INTO url_database.short_urls (original, short) values ($1, $2)", originalURL, shortURL)
 	if err != nil {
-		return errors.Wrap(err, "Error while inserting row in db"+string(result.RowsAffected()))
+		return errors.Wrap(err, "Error while inserting row in db")
 	}
 	return nil
 }
