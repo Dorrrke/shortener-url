@@ -43,7 +43,7 @@ func (storage URLStorage) CheckDBConnect(ctx context.Context) error {
 }
 
 func (storage URLStorage) CreateTable(ctx context.Context) error {
-	createTableStr := `CREATE TABLE IF NOT EXISTS url_database.short_urls
+	createTableStr := `CREATE TABLE IF NOT EXISTS short_urls
 	(
 		url_id serial PRIMARY KEY,
 		original character(255) NOT NULL,
