@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 
+	"github.com/Dorrrke/shortener-url/internal/logger"
 	"github.com/jackc/pgx/v5"
 	"github.com/pkg/errors"
 )
@@ -40,4 +41,42 @@ func (storage URLStorage) CheckDBConnect(ctx context.Context) error {
 		return errors.Wrap(err, "Error while checking connection")
 	}
 	return nil
+}
+
+func (storage URLStorage) CreateTable(ctx context.Context) error {
+	createTableStr := `CREATE TABLE IF NOT EXISTS url_database.short_urls
+	(
+		url_id serial PRIMARY KEY,
+		original character(255) NOT NULL,
+		short character(255) NOT NULL
+	)`
+	result, err := storage.DB.Exec(ctx, createTableStr)
+	if err != nil {
+		return errors.Wrap(err, "Error whitle creating table")
+	}
+	logger.Log.Info(string(result.RowsAffected()) + " _ " + result.String())
+	return nil
+}
+
+func (storage URLStorage) InsertURL(ctx context.Context, originalURL string, shortURL string) error {
+	result, err := storage.DB.Exec(ctx, "INSERT INTO url_database.short_urls (original, short) values ($1, $2)", originalURL, shortURL)
+	if err != nil {
+		return errors.Wrap(err, "Error while inserting row in db"+string(result.RowsAffected()))
+	}
+	return nil
+}
+
+func (storage URLStorage) GetURLByShortURL(ctx context.Context, shotURL string) (string, error) {
+	rows := storage.DB.QueryRow(ctx, "SELECT original FROM url_database.short_urls where short = $1", shotURL)
+	// if err != nil {
+	// 	return "", errors.Wrap(err, "Error when getting row from db")
+	// }
+	var result string
+
+	if err := rows.Scan(&result); err != nil {
+		return "", errors.Wrap(err, "Error parsing db info")
+	}
+
+	return result, nil
+
 }

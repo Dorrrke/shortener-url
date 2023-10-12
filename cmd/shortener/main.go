@@ -92,12 +92,14 @@ func main() {
 		log.Print("env")
 		URLServer.AddFilePath(cfg.storageRestor.FilePathString)
 	}
-	if URLServer.GetFilePath() == "" {
-		log.Print("default")
-		URLServer.AddFilePath(FilePath)
-	}
+	// if URLServer.GetFilePath() == "" {
+	// 	log.Print("default")
+	// 	URLServer.AddFilePath(FilePath)
+	// }
 
-	URLServer.RestorStorage()
+	if err := URLServer.RestorStorage(); err != nil {
+		logger.Log.Error("Error restor storage: ", zap.Error(err))
+	}
 	if err := run(URLServer); err != nil {
 		panic(err)
 	}

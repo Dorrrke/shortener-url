@@ -44,14 +44,18 @@ func (s *Server) GetOriginalURLHandler(res http.ResponseWriter, req *http.Reques
 	if req.Method == http.MethodGet {
 		URLId := chi.URLParam(req, "id")
 		if URLId != "" {
-			if s.storage.CheckMapKey(URLId) {
-				url := s.storage.GetOrigURL(URLId)
+			url, err := s.getURL(URLId)
+			if err != nil {
+				logger.Log.Error("Error when read from base: ", zap.Error(err))
+				http.Error(res, "Не корректный запрос", http.StatusBadRequest)
+				return
+			}
+			if url != "" {
 				res.Header().Add("Location", url)
 				res.WriteHeader(http.StatusTemporaryRedirect)
-			} else {
-				http.Error(res, "Не корректный запрос", http.StatusBadRequest)
+				return
 			}
-			return
+			http.Error(res, "Не корректный запрос", http.StatusBadRequest)
 		}
 		http.Error(res, "Не корректный запрос", http.StatusBadRequest)
 	} else {
@@ -75,11 +79,16 @@ func (s *Server) ShortenerURLHandler(res http.ResponseWriter, req *http.Request)
 		} else {
 			result = "http://" + s.ServerConf.ShortURLHostConfig.String() + "/" + urlID
 		}
-		s.storage.CreateURL(urlID, string(body))
-		if err := writeURL(s.filePath, restorURL{urlID, string(body)}); err != nil {
-			logger.Log.Debug("cannot save URL in file", zap.Error(err)) //прокидывать экзепляр логера в сервер, что бы не пользоваться стандартным
-			// http.Error(res, "Не корректный запрос", http.StatusInternalServerError) нужно передавать ошибку пользователю
+
+		if err := s.saveURL(string(body), urlID); err != nil {
+			logger.Log.Info("cannot save URL in file", zap.Error(err))
 		}
+
+		// s.storage.CreateURL(urlID, string(body))
+		// if err := writeURL(s.filePath, restorURL{urlID, string(body)}); err != nil {
+		// 	logger.Log.Debug("cannot save URL in file", zap.Error(err)) //прокидывать экзепляр логера в сервер, что бы не пользоваться стандартным
+		// 	// http.Error(res, "Не корректный запрос", http.StatusInternalServerError) нужно передавать ошибку пользователю
+		// }
 		res.Header().Set("content-type", "text/plain")
 		res.WriteHeader(http.StatusCreated)
 		res.Write([]byte(result))
@@ -105,11 +114,16 @@ func (s *Server) ShortenerJSONURLHandler(res http.ResponseWriter, req *http.Requ
 		} else {
 			result = "http://" + s.ServerConf.ShortURLHostConfig.String() + "/" + urlID
 		}
-		s.storage.CreateURL(urlID, modelURL.URLAddres)
-		if err := writeURL(s.filePath, restorURL{urlID, modelURL.URLAddres}); err != nil {
-			logger.Log.Debug("cannot save URL in file", zap.Error(err)) //прокидывать экзепляр логера в сервер, что бы не пользоваться стандартным
-			// http.Error(res, "Не корректный запрос", http.StatusInternalServerError) нужно передавать ошибку пользователю
+
+		if err := s.saveURL(modelURL.URLAddres, urlID); err != nil {
+			logger.Log.Info("cannot save URL in file", zap.Error(err))
 		}
+
+		// s.storage.CreateURL(urlID, modelURL.URLAddres)
+		// if err := writeURL(s.filePath, restorURL{urlID, modelURL.URLAddres}); err != nil {
+		// 	logger.Log.Debug("cannot save URL in file", zap.Error(err)) //прокидывать экзепляр логера в сервер, что бы не пользоваться стандартным
+		// 	// http.Error(res, "Не корректный запрос", http.StatusInternalServerError) нужно передавать ошибку пользователю
+		// }
 		res.Header().Set("Content-Type", "application/json")
 		res.WriteHeader(http.StatusCreated)
 		enc := json.NewEncoder(res)
@@ -172,21 +186,30 @@ func (s *Server) GetFilePath() string {
 }
 
 func (s *Server) RestorStorage() error {
-	file, err := os.OpenFile(s.filePath, os.O_RDONLY|os.O_CREATE, 0666)
-	if err != nil {
-		return err
-	}
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		data := restorURL{}
-		err := json.Unmarshal(scanner.Bytes(), &data)
+
+	if s.storage.DB != nil {
+		if err := s.CreateTable(); err != nil {
+			logger.Log.Info("Error when create table: " + err.Error())
+			return errors.Wrap(err, "Error when create table: ")
+		}
+		return nil
+	} else {
+		file, err := os.OpenFile(s.filePath, os.O_RDONLY|os.O_CREATE, 0666)
 		if err != nil {
 			return err
 		}
-		s.storage.CreateURL(data.ShortURL, data.OriginalURL)
+		scanner := bufio.NewScanner(file)
+		for scanner.Scan() {
+			data := restorURL{}
+			err := json.Unmarshal(scanner.Bytes(), &data)
+			if err != nil {
+				return err
+			}
+			s.storage.CreateURL(data.ShortURL, data.OriginalURL)
+		}
+		file.Close()
+		return nil
 	}
-	file.Close()
-	return nil
 }
 
 func writeURL(fileName string, lastURL restorURL) error {
@@ -212,4 +235,60 @@ func writeURL(fileName string, lastURL restorURL) error {
 
 func (s *Server) AddDB(db *pgx.Conn) {
 	s.storage.DB = db
+}
+
+func (s *Server) saveURL(original string, short string) error {
+
+	if s.storage.DB != nil {
+		logger.Log.Info("Save into db")
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := s.storage.InsertURL(ctx, original, short); err != nil {
+			return err
+		}
+		return nil
+	} else {
+		if s.filePath != "" {
+			logger.Log.Info("Save into file")
+			if err := writeURL(s.filePath, restorURL{short, original}); err != nil {
+				logger.Log.Debug("cannot save URL in file", zap.Error(err)) //прокидывать экзепляр логера в сервер, что бы не пользоваться стандартным
+				return err
+			}
+			s.storage.CreateURL(short, original)
+			return nil
+		} else {
+			logger.Log.Debug("Save into map")
+			s.storage.CreateURL(short, original)
+			return nil
+		}
+	}
+}
+
+func (s *Server) getURL(short string) (string, error) {
+	if s.storage.DB != nil {
+		logger.Log.Info("Get from db")
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		originalURL, err := s.storage.GetURLByShortURL(ctx, short)
+		if err != nil {
+			return "", err
+		}
+		return originalURL, nil
+	} else {
+		logger.Log.Info("Get from map")
+		if s.storage.CheckMapKey(short) {
+			url := s.storage.GetOrigURL(short)
+			return url, nil
+		}
+		return "", nil // Тут нужна ошибка
+	}
+}
+
+func (s *Server) CreateTable() error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := s.storage.CreateTable(ctx); err != nil {
+		return err
+	}
+	return nil
 }
