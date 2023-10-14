@@ -114,7 +114,10 @@ func run(serv server.Server) error {
 	r.Route("/", func(r chi.Router) {
 		r.Post("/", logger.WithLogging(server.GzipMiddleware(serv.ShortenerURLHandler)))
 		r.Get("/{id}", logger.WithLogging(server.GzipMiddleware(serv.GetOriginalURLHandler)))
-		r.Post("/api/shorten", logger.WithLogging(server.GzipMiddleware(serv.ShortenerJSONURLHandler)))
+		r.Route("/api/shorten", func(r chi.Router) {
+			r.Post("/", logger.WithLogging(server.GzipMiddleware(serv.ShortenerJSONURLHandler)))
+			r.Post("/batch", logger.WithLogging(server.GzipMiddleware(serv.InsertBatchHandler)))
+		})
 		r.Get("/ping", logger.WithLogging(server.GzipMiddleware(serv.CheckDBConnectionHandler)))
 	})
 

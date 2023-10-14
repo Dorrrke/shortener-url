@@ -3,8 +3,11 @@ package storage
 import (
 	"context"
 
+	"github.com/Dorrrke/shortener-url/internal/logger"
+	"github.com/Dorrrke/shortener-url/pkg/models"
 	"github.com/jackc/pgx/v5"
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
 )
 
 type URLCreatorGetter interface {
@@ -65,6 +68,7 @@ func (storage URLStorage) InsertURL(ctx context.Context, originalURL string, sho
 }
 
 func (storage URLStorage) GetURLByShortURL(ctx context.Context, shotURL string) (string, error) {
+	logger.Log.Info("Serach shortURL: ", zap.String("1", shotURL))
 	rows := storage.DB.QueryRow(ctx, "SELECT original FROM short_urls where short = $1", shotURL)
 	// if err != nil {
 	// 	return "", errors.Wrap(err, "Error when getting row from db")
@@ -77,4 +81,24 @@ func (storage URLStorage) GetURLByShortURL(ctx context.Context, shotURL string) 
 
 	return result, nil
 
+}
+
+func (storage URLStorage) InsertBanchURL(ctx context.Context, value []models.BantchURL) error {
+	tx, err := storage.DB.Begin(ctx)
+	if err != nil {
+		return err
+	}
+
+	defer tx.Rollback(ctx)
+
+	if _, err := tx.Prepare(ctx, "insert bantch", "INSERT INTO short_urls (original, short) values ($1, $2)"); err != nil {
+		return err
+	}
+
+	for _, v := range value {
+		if _, err := tx.Exec(ctx, "insert bantch", v.OriginalURL, v.ShortURL); err != nil {
+			return err
+		}
+	}
+	return tx.Commit(ctx)
 }

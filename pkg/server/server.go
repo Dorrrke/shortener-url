@@ -16,18 +16,12 @@ import (
 
 	"github.com/Dorrrke/shortener-url/internal/config"
 	"github.com/Dorrrke/shortener-url/internal/logger"
+	"github.com/Dorrrke/shortener-url/pkg/models"
 	"github.com/Dorrrke/shortener-url/pkg/storage"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
-
-type RequestURLJson struct {
-	URLAddres string `json:"url"`
-}
-type ResponseURLJson struct {
-	URLAddres string `json:"result"`
-}
 
 type Server struct {
 	storage    storage.URLStorage
@@ -44,7 +38,13 @@ func (s *Server) GetOriginalURLHandler(res http.ResponseWriter, req *http.Reques
 	if req.Method == http.MethodGet {
 		URLId := chi.URLParam(req, "id")
 		if URLId != "" {
-			url, err := s.getURL(URLId)
+			var shortURL string
+			if s.ServerConf.ShortURLHostConfig.Host == "" {
+				shortURL = "http://" + req.Host + "/" + URLId
+			} else {
+				shortURL = "http://" + s.ServerConf.ShortURLHostConfig.String() + "/" + URLId
+			}
+			url, err := s.getURL(shortURL)
 			if err != nil {
 				logger.Log.Error("Error when read from base: ", zap.Error(err))
 				http.Error(res, "Не корректный запрос", http.StatusBadRequest)
@@ -71,7 +71,7 @@ func (s *Server) ShortenerURLHandler(res http.ResponseWriter, req *http.Request)
 		http.Error(res, err.Error(), 500)
 		return
 	}
-	if strings.HasPrefix(string(body), "http://") || strings.HasPrefix(string(body), "https://") {
+	if validationURL(string(body)) {
 		urlID := strings.Split(uuid.New().String(), "-")[0]
 		var result string
 		if s.ServerConf.ShortURLHostConfig.Host == "" {
@@ -80,7 +80,7 @@ func (s *Server) ShortenerURLHandler(res http.ResponseWriter, req *http.Request)
 			result = "http://" + s.ServerConf.ShortURLHostConfig.String() + "/" + urlID
 		}
 
-		if err := s.saveURL(string(body), urlID); err != nil {
+		if err := s.saveURL(string(body), result); err != nil {
 			logger.Log.Info("cannot save URL in file", zap.Error(err))
 		}
 
@@ -101,12 +101,12 @@ func (s *Server) ShortenerURLHandler(res http.ResponseWriter, req *http.Request)
 func (s *Server) ShortenerJSONURLHandler(res http.ResponseWriter, req *http.Request) {
 
 	dec := json.NewDecoder(req.Body)
-	var modelURL RequestURLJson
+	var modelURL models.RequestURLJson
 
 	if err := dec.Decode(&modelURL); err != nil {
 		logger.Log.Debug("cannot decod boby json", zap.Error(err))
 	}
-	if strings.HasPrefix(string(modelURL.URLAddres), "http://") || strings.HasPrefix(string(modelURL.URLAddres), "https://") {
+	if validationURL(string(modelURL.URLAddres)) {
 		urlID := strings.Split(uuid.New().String(), "-")[0]
 		var result string
 		if s.ServerConf.ShortURLHostConfig.Host == "" {
@@ -115,7 +115,7 @@ func (s *Server) ShortenerJSONURLHandler(res http.ResponseWriter, req *http.Requ
 			result = "http://" + s.ServerConf.ShortURLHostConfig.String() + "/" + urlID
 		}
 
-		if err := s.saveURL(modelURL.URLAddres, urlID); err != nil {
+		if err := s.saveURL(modelURL.URLAddres, result); err != nil {
 			logger.Log.Info("cannot save URL in file", zap.Error(err))
 		}
 
@@ -127,8 +127,8 @@ func (s *Server) ShortenerJSONURLHandler(res http.ResponseWriter, req *http.Requ
 		res.Header().Set("Content-Type", "application/json")
 		res.WriteHeader(http.StatusCreated)
 		enc := json.NewEncoder(res)
-		resultJSON := ResponseURLJson{
-			result,
+		resultJSON := models.ResponseURLJson{
+			URLAddres: result,
 		}
 		if err := enc.Encode(resultJSON); err != nil {
 			logger.Log.Debug("error encoding responce", zap.Error(err))
@@ -153,6 +153,57 @@ func (s *Server) CheckDBConnectionHandler(res http.ResponseWriter, req *http.Req
 		return
 	}
 	res.WriteHeader(http.StatusOK)
+}
+
+func (s *Server) InsertBatchHandler(res http.ResponseWriter, req *http.Request) {
+	dec := json.NewDecoder(req.Body)
+	var modelURL []models.RequestBatchURLModel
+	if err := dec.Decode(&modelURL); err != nil {
+		logger.Log.Error("cannot decod boby json", zap.Error(err))
+	}
+	if len(modelURL) == 0 {
+		http.Error(res, "Не корректный запрос", http.StatusBadRequest)
+		return
+	}
+	var bantchValues []models.BantchURL
+	var resBatchValues []models.ResponseBatchURLModel
+	for _, v := range modelURL {
+		if validationURL(v.OriginalURL) {
+			urlID := strings.Split(uuid.New().String(), "-")[0]
+			var shortURL string
+			if s.ServerConf.ShortURLHostConfig.Host == "" {
+				shortURL = "http://" + req.Host + "/" + urlID
+			} else {
+				shortURL = "http://" + s.ServerConf.ShortURLHostConfig.String() + "/" + urlID
+			}
+			bantchValues = append(bantchValues, models.BantchURL{
+				OriginalURL: v.OriginalURL,
+				ShortURL:    shortURL,
+			})
+			resBatchValues = append(resBatchValues, models.ResponseBatchURLModel{
+				CorrID:      v.CorrID,
+				OriginalURL: shortURL,
+			})
+		} else {
+			http.Error(res, "Не корректный запрос", http.StatusBadRequest)
+			return
+		}
+	}
+
+	if err := s.SaveURLBatch(bantchValues); err != nil {
+		logger.Log.Error("Error while save batch", zap.Error(err))
+		http.Error(res, "Ошибка при сохарнении данных", http.StatusInternalServerError)
+	}
+	res.Header().Set("Content-Type", "application/json")
+	res.WriteHeader(http.StatusCreated)
+	enc := json.NewEncoder(res)
+	// resultJSON := models.ResponseURLJson{
+	// 	URLAddres: result,
+	// }
+	if err := enc.Encode(resBatchValues); err != nil {
+		logger.Log.Debug("error encoding responce", zap.Error(err))
+		http.Error(res, "Не корректный запрос", http.StatusInternalServerError)
+	}
 }
 
 func (s *Server) New() {
@@ -264,6 +315,36 @@ func (s *Server) saveURL(original string, short string) error {
 	}
 }
 
+func (s *Server) SaveURLBatch(batch []models.BantchURL) error {
+	if s.storage.DB != nil {
+		logger.Log.Info("Save into db")
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := s.storage.InsertBanchURL(ctx, batch); err != nil {
+			return err
+		}
+		return nil
+	} else {
+		if s.filePath != "" {
+			logger.Log.Info("Save batch into file")
+			for _, v := range batch {
+				if err := writeURL(s.filePath, restorURL{v.ShortURL, v.OriginalURL}); err != nil {
+					logger.Log.Debug("cannot save URL in file", zap.Error(err)) //прокидывать экзепляр логера в сервер, что бы не пользоваться стандартным
+					return err
+				}
+				s.storage.CreateURL(v.ShortURL, v.OriginalURL)
+			}
+			return nil
+		} else {
+			logger.Log.Debug("Save batch into map")
+			for _, v := range batch {
+				s.storage.CreateURL(v.ShortURL, v.OriginalURL)
+			}
+			return nil
+		}
+	}
+}
+
 func (s *Server) getURL(short string) (string, error) {
 	if s.storage.DB != nil {
 		logger.Log.Info("Get from db")
@@ -291,4 +372,11 @@ func (s *Server) CreateTable() error {
 		return err
 	}
 	return nil
+}
+
+func validationURL(URL string) bool {
+	if strings.HasPrefix(URL, "http://") || strings.HasPrefix(URL, "https://") {
+		return true
+	}
+	return false
 }
