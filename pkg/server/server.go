@@ -141,7 +141,7 @@ func (s *Server) ShortenerJSONURLHandler(res http.ResponseWriter, req *http.Requ
 						return
 					}
 					result = shortUrl
-					res.Header().Set("content-type", "text/plain")
+					res.Header().Set("Content-Type", "application/json")
 					res.WriteHeader(http.StatusConflict)
 					res.Write([]byte(result))
 					return

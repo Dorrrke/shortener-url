@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"strings"
 
 	"github.com/Dorrrke/shortener-url/internal/logger"
 	"github.com/Dorrrke/shortener-url/pkg/models"
@@ -97,7 +98,7 @@ func (storage URLStorage) GetURLByOriginalURL(ctx context.Context, original stri
 		return "", errors.Wrap(err, "Error parsing db info")
 	}
 
-	return result, nil
+	return strings.TrimSpace(result), nil
 
 }
 
