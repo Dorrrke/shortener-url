@@ -51,7 +51,9 @@ func (storage URLStorage) CreateTable(ctx context.Context) error {
 		url_id serial PRIMARY KEY,
 		original character(255) NOT NULL,
 		short character(255) NOT NULL
-	)`
+	);
+	
+	create UNIQUE INDEX IF NOT EXISTS original_id ON short_urls (original)`
 	_, err := storage.DB.Exec(ctx, createTableStr)
 	if err != nil {
 		return errors.Wrap(err, "Error whitle creating table")
@@ -70,6 +72,22 @@ func (storage URLStorage) InsertURL(ctx context.Context, originalURL string, sho
 func (storage URLStorage) GetURLByShortURL(ctx context.Context, shotURL string) (string, error) {
 	logger.Log.Info("Serach shortURL: ", zap.String("1", shotURL))
 	rows := storage.DB.QueryRow(ctx, "SELECT original FROM short_urls where short = $1", shotURL)
+	// if err != nil {
+	// 	return "", errors.Wrap(err, "Error when getting row from db")
+	// }
+	var result string
+
+	if err := rows.Scan(&result); err != nil {
+		return "", errors.Wrap(err, "Error parsing db info")
+	}
+
+	return result, nil
+
+}
+
+func (storage URLStorage) GetURLByOriginalURL(ctx context.Context, original string) (string, error) {
+
+	rows := storage.DB.QueryRow(ctx, "SELECT short FROM short_urls where original = $1", original)
 	// if err != nil {
 	// 	return "", errors.Wrap(err, "Error when getting row from db")
 	// }

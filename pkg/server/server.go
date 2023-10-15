@@ -11,7 +11,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/pkg/errors"
 
 	"github.com/Dorrrke/shortener-url/internal/config"
@@ -44,7 +46,7 @@ func (s *Server) GetOriginalURLHandler(res http.ResponseWriter, req *http.Reques
 			} else {
 				shortURL = "http://" + s.ServerConf.ShortURLHostConfig.String() + "/" + URLId
 			}
-			url, err := s.getURL(shortURL)
+			url, err := s.getURLByShortURL(shortURL)
 			if err != nil {
 				logger.Log.Error("Error when read from base: ", zap.Error(err))
 				http.Error(res, "Не корректный запрос", http.StatusBadRequest)
@@ -81,14 +83,27 @@ func (s *Server) ShortenerURLHandler(res http.ResponseWriter, req *http.Request)
 		}
 
 		if err := s.saveURL(string(body), result); err != nil {
-			logger.Log.Info("cannot save URL in file", zap.Error(err))
+			var pgErr *pgconn.PgError
+			if errors.As(err, &pgErr) {
+				if pgerrcode.IsIntegrityConstraintViolation(pgErr.Code) {
+					shortUrl, err := s.getURLByOriginalURL(string(body))
+					if err != nil {
+						logger.Log.Error("Error when read from base: ", zap.Error(err))
+						http.Error(res, "Не корректный запрос", http.StatusBadRequest)
+						return
+					}
+					result = shortUrl
+					res.Header().Set("content-type", "text/plain")
+					res.WriteHeader(http.StatusConflict)
+					res.Write([]byte(result))
+					return
+
+				} else {
+					logger.Log.Info("cannot save URL in file", zap.Error(err))
+				}
+			}
 		}
 
-		// s.storage.CreateURL(urlID, string(body))
-		// if err := writeURL(s.filePath, restorURL{urlID, string(body)}); err != nil {
-		// 	logger.Log.Debug("cannot save URL in file", zap.Error(err)) //прокидывать экзепляр логера в сервер, что бы не пользоваться стандартным
-		// 	// http.Error(res, "Не корректный запрос", http.StatusInternalServerError) нужно передавать ошибку пользователю
-		// }
 		res.Header().Set("content-type", "text/plain")
 		res.WriteHeader(http.StatusCreated)
 		res.Write([]byte(result))
@@ -116,14 +131,27 @@ func (s *Server) ShortenerJSONURLHandler(res http.ResponseWriter, req *http.Requ
 		}
 
 		if err := s.saveURL(modelURL.URLAddres, result); err != nil {
-			logger.Log.Info("cannot save URL in file", zap.Error(err))
+			var pgErr *pgconn.PgError
+			if errors.As(err, &pgErr) {
+				if pgerrcode.IsIntegrityConstraintViolation(pgErr.Code) {
+					shortUrl, err := s.getURLByOriginalURL(modelURL.URLAddres)
+					if err != nil {
+						logger.Log.Error("Error when read from base: ", zap.Error(err))
+						http.Error(res, "Не корректный запрос", http.StatusBadRequest)
+						return
+					}
+					result = shortUrl
+					res.Header().Set("content-type", "text/plain")
+					res.WriteHeader(http.StatusConflict)
+					res.Write([]byte(result))
+					return
+
+				} else {
+					logger.Log.Info("cannot save URL in file", zap.Error(err))
+				}
+			}
 		}
 
-		// s.storage.CreateURL(urlID, modelURL.URLAddres)
-		// if err := writeURL(s.filePath, restorURL{urlID, modelURL.URLAddres}); err != nil {
-		// 	logger.Log.Debug("cannot save URL in file", zap.Error(err)) //прокидывать экзепляр логера в сервер, что бы не пользоваться стандартным
-		// 	// http.Error(res, "Не корректный запрос", http.StatusInternalServerError) нужно передавать ошибку пользователю
-		// }
 		res.Header().Set("Content-Type", "application/json")
 		res.WriteHeader(http.StatusCreated)
 		enc := json.NewEncoder(res)
@@ -284,8 +312,8 @@ func writeURL(fileName string, lastURL restorURL) error {
 	return nil
 }
 
-func (s *Server) AddDB(db *pgx.Conn) {
-	s.storage.DB = db
+func (s *Server) AddDB(dataBase *pgx.Conn) {
+	s.storage.DB = dataBase
 }
 
 func (s *Server) saveURL(original string, short string) error {
@@ -302,7 +330,6 @@ func (s *Server) saveURL(original string, short string) error {
 		if s.filePath != "" {
 			logger.Log.Info("Save into file")
 			if err := writeURL(s.filePath, restorURL{short, original}); err != nil {
-				logger.Log.Debug("cannot save URL in file", zap.Error(err)) //прокидывать экзепляр логера в сервер, что бы не пользоваться стандартным
 				return err
 			}
 			s.storage.CreateURL(short, original)
@@ -329,7 +356,6 @@ func (s *Server) SaveURLBatch(batch []models.BantchURL) error {
 			logger.Log.Info("Save batch into file")
 			for _, v := range batch {
 				if err := writeURL(s.filePath, restorURL{v.ShortURL, v.OriginalURL}); err != nil {
-					logger.Log.Debug("cannot save URL in file", zap.Error(err)) //прокидывать экзепляр логера в сервер, что бы не пользоваться стандартным
 					return err
 				}
 				s.storage.CreateURL(v.ShortURL, v.OriginalURL)
@@ -345,7 +371,7 @@ func (s *Server) SaveURLBatch(batch []models.BantchURL) error {
 	}
 }
 
-func (s *Server) getURL(short string) (string, error) {
+func (s *Server) getURLByShortURL(short string) (string, error) {
 	if s.storage.DB != nil {
 		logger.Log.Info("Get from db")
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -363,6 +389,20 @@ func (s *Server) getURL(short string) (string, error) {
 		}
 		return "", nil // Тут нужна ошибка
 	}
+}
+
+func (s *Server) getURLByOriginalURL(original string) (string, error) {
+	if s.storage.DB != nil {
+		logger.Log.Info("Get from db")
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		originalURL, err := s.storage.GetURLByOriginalURL(ctx, original)
+		if err != nil {
+			return "", err
+		}
+		return originalURL, nil
+	}
+	return "", errors.New("Not connect to DB")
 }
 
 func (s *Server) CreateTable() error {
