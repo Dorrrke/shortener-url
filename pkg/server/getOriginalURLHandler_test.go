@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Dorrrke/shortener-url/pkg/storage"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/assert"
@@ -16,7 +17,7 @@ func TestGetOriginalURLHandler(t *testing.T) {
 	r := chi.NewRouter()
 
 	var URLServer Server
-	URLServer.New()
+	URLServer.AddStorage(&storage.MemStorage{URLMap: make(map[string]string)})
 
 	r.Route("/", func(r chi.Router) {
 		r.Post("/", URLServer.ShortenerURLHandler)

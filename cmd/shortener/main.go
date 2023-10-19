@@ -8,6 +8,7 @@ import (
 
 	"github.com/Dorrrke/shortener-url/internal/logger"
 	"github.com/Dorrrke/shortener-url/pkg/server"
+	"github.com/Dorrrke/shortener-url/pkg/storage"
 	"github.com/caarlos0/env/v6"
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5"
@@ -42,7 +43,6 @@ func main() {
 		panic(err)
 	}
 	var URLServer server.Server
-	URLServer.New()
 	var cfg ValueConfig
 	var fileName string
 	var DBaddr string
@@ -64,27 +64,20 @@ func main() {
 	}
 	dbDsnErr := env.Parse(&cfg.dataBaseDsn)
 	if dbDsnErr == nil {
-		conn, err := pgx.Connect(context.Background(), cfg.dataBaseDsn.DBDSN)
-		if err != nil {
-			logger.Log.Error("Error wile init db driver: " + err.Error())
-			URLServer.AddDB(nil)
-		} else {
-			URLServer.AddDB(conn)
-			defer conn.Close(context.Background())
-		}
+		conn := initDB(cfg.dataBaseDsn.DBDSN)
+		URLServer.AddStorage(&storage.DBStorage{DB: conn})
+		defer conn.Close(context.Background())
 	}
 	logger.Log.Info("DataBase URL env: " + cfg.dataBaseDsn.DBDSN)
 	logger.Log.Info("DataBase URL flag: " + DBaddr)
 
 	if cfg.dataBaseDsn.DBDSN == "" {
-		conn, err := pgx.Connect(context.Background(), DBaddr)
-		if err != nil {
-			logger.Log.Error("Error wile init db driver: " + err.Error())
-			URLServer.AddDB(nil)
-		} else {
-			URLServer.AddDB(conn)
-			defer conn.Close(context.Background())
-		}
+		conn := initDB(DBaddr)
+		URLServer.AddStorage(&storage.DBStorage{DB: conn})
+		defer conn.Close(context.Background())
+	}
+	if cfg.dataBaseDsn.DBDSN == "" && DBaddr == "" {
+		URLServer.AddStorage(&storage.MemStorage{URLMap: make(map[string]string)})
 	}
 
 	filePathErr := env.Parse(&cfg.storageRestor)
@@ -126,4 +119,14 @@ func run(serv server.Server) error {
 	} else {
 		return http.ListenAndServe(serv.ServerConf.HostConfig.String(), r)
 	}
+}
+
+func initDB(DBAddr string) *pgx.Conn {
+	conn, err := pgx.Connect(context.Background(), DBAddr)
+	if err != nil {
+		logger.Log.Error("Error wile init db driver: " + err.Error())
+		panic(err)
+	}
+	return conn
+
 }
