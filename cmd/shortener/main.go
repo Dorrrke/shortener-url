@@ -71,12 +71,11 @@ func main() {
 	logger.Log.Info("DataBase URL env: " + cfg.dataBaseDsn.DBDSN)
 	logger.Log.Info("DataBase URL flag: " + DBaddr)
 
-	if cfg.dataBaseDsn.DBDSN == "" {
+	if cfg.dataBaseDsn.DBDSN == "" && DBaddr != "" {
 		conn := initDB(DBaddr)
 		URLServer.AddStorage(&storage.DBStorage{DB: conn})
 		defer conn.Close(context.Background())
-	}
-	if cfg.dataBaseDsn.DBDSN == "" && DBaddr == "" {
+	} else {
 		URLServer.AddStorage(&storage.MemStorage{URLMap: make(map[string]string)})
 	}
 
