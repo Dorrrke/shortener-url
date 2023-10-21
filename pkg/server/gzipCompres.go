@@ -29,7 +29,7 @@ func (c *gzipWriter) Write(p []byte) (int, error) {
 }
 
 func (c *gzipWriter) WriteHeader(statusCode int) {
-	if statusCode < 300 {
+	if statusCode < 300 || statusCode == 409 {
 		c.w.Header().Set("Content-Encoding", "gzip")
 	}
 	c.w.WriteHeader(statusCode)
