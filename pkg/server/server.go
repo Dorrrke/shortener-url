@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/pkg/errors"
@@ -24,6 +25,8 @@ import (
 	"go.uber.org/zap"
 )
 
+const SECRET_KEY = "Secret123Key345Super"
+
 type Server struct {
 	storage    storage.Storage
 	ServerConf config.Config
@@ -33,6 +36,11 @@ type Server struct {
 type restorURL struct {
 	ShortURL    string `json:"short_url"`
 	OriginalURL string `json:"original_url"`
+}
+
+type Claims struct {
+	jwt.RegisteredClaims
+	UserID string
 }
 
 func (s *Server) GetOriginalURLHandler(res http.ResponseWriter, req *http.Request) {
@@ -62,6 +70,23 @@ func (s *Server) GetOriginalURLHandler(res http.ResponseWriter, req *http.Reques
 
 func (s *Server) ShortenerURLHandler(res http.ResponseWriter, req *http.Request) {
 
+	var userID string
+	reqCookie, err := req.Cookie("tokenCookie")
+	if err != nil {
+		userID = uuid.New().String()
+	} else {
+		userID = GetUID(reqCookie.Value)
+	}
+	token, err := CreateJWTToken(userID)
+	if err != nil {
+		logger.Log.Info("cannot create token", zap.Error(err))
+	}
+	cookie := http.Cookie{
+		Name:  "tokenCookie",
+		Value: token,
+	}
+	http.SetCookie(res, &cookie)
+
 	logger.Log.Info("Test logger in handler")
 	body, err := io.ReadAll(req.Body)
 	if err != nil {
@@ -80,7 +105,7 @@ func (s *Server) ShortenerURLHandler(res http.ResponseWriter, req *http.Request)
 		result = "http://" + s.ServerConf.ShortURLHostConfig.String() + "/" + urlID
 	}
 
-	if err := s.saveURL(string(body), result); err != nil {
+	if err := s.saveURL(string(body), result, userID); err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {
 			if !pgerrcode.IsIntegrityConstraintViolation(pgErr.Code) {
@@ -102,7 +127,6 @@ func (s *Server) ShortenerURLHandler(res http.ResponseWriter, req *http.Request)
 			return
 		}
 	}
-
 	res.Header().Set("content-type", "text/plain")
 	res.WriteHeader(http.StatusCreated)
 	res.Write([]byte(result))
@@ -110,6 +134,23 @@ func (s *Server) ShortenerURLHandler(res http.ResponseWriter, req *http.Request)
 }
 
 func (s *Server) ShortenerJSONURLHandler(res http.ResponseWriter, req *http.Request) {
+
+	var userID string
+	reqCookie, err := req.Cookie("tokenCookie")
+	if err != nil {
+		userID = uuid.New().String()
+	} else {
+		userID = GetUID(reqCookie.Value)
+	}
+	token, err := CreateJWTToken(userID)
+	if err != nil {
+		logger.Log.Info("cannot create token", zap.Error(err))
+	}
+	cookie := http.Cookie{
+		Name:  "tokenCookie",
+		Value: token,
+	}
+	http.SetCookie(res, &cookie)
 
 	dec := json.NewDecoder(req.Body)
 	var modelURL models.RequestURLJson
@@ -128,7 +169,7 @@ func (s *Server) ShortenerJSONURLHandler(res http.ResponseWriter, req *http.Requ
 	} else {
 		result = "http://" + s.ServerConf.ShortURLHostConfig.String() + "/" + urlID
 	}
-	if err := s.saveURL(modelURL.URLAddres, result); err != nil {
+	if err := s.saveURL(modelURL.URLAddres, result, userID); err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {
 			if pgerrcode.IsIntegrityConstraintViolation(pgErr.Code) {
@@ -182,7 +223,51 @@ func (s *Server) CheckDBConnectionHandler(res http.ResponseWriter, req *http.Req
 	res.WriteHeader(http.StatusOK)
 }
 
+func (s *Server) GetAllUrls(res http.ResponseWriter, req *http.Request) {
+	reqCookie, err := req.Cookie("tokenCookie")
+	if err != nil {
+		logger.Log.Error("Cookie err", zap.Error(err))
+		http.Error(res, "User unauth", http.StatusUnauthorized)
+		return
+	}
+	userID := GetUID(reqCookie.Value)
+	if userID == "" {
+		http.Error(res, "User unauth", http.StatusUnauthorized)
+		return
+	}
+	urls, err := s.getAllURLs(userID)
+	if err != nil {
+		http.Error(res, "Не корректный запрос", http.StatusInternalServerError)
+	}
+
+	res.Header().Set("Content-Type", "application/json")
+	res.WriteHeader(http.StatusCreated)
+	enc := json.NewEncoder(res)
+	if err := enc.Encode(urls); err != nil {
+		logger.Log.Debug("error encoding responce", zap.Error(err))
+		http.Error(res, "Не корректный запрос", http.StatusInternalServerError)
+	}
+
+}
+
 func (s *Server) InsertBatchHandler(res http.ResponseWriter, req *http.Request) {
+	var userID string
+	reqCookie, err := req.Cookie("tokenCookie")
+	if err != nil {
+		userID = uuid.New().String()
+	} else {
+		userID = GetUID(reqCookie.Value)
+	}
+	token, err := CreateJWTToken(userID)
+	if err != nil {
+		logger.Log.Info("cannot create token", zap.Error(err))
+	}
+	cookie := http.Cookie{
+		Name:  "tokenCookie",
+		Value: token,
+	}
+	http.SetCookie(res, &cookie)
+
 	dec := json.NewDecoder(req.Body)
 	var modelURL []models.RequestBatchURLModel
 	if err := dec.Decode(&modelURL); err != nil {
@@ -206,6 +291,7 @@ func (s *Server) InsertBatchHandler(res http.ResponseWriter, req *http.Request) 
 			bantchValues = append(bantchValues, models.BantchURL{
 				OriginalURL: v.OriginalURL,
 				ShortURL:    shortURL,
+				UserId:      userID,
 			})
 			resBatchValues = append(resBatchValues, models.ResponseBatchURLModel{
 				CorrID:      v.CorrID,
@@ -233,27 +319,9 @@ func (s *Server) InsertBatchHandler(res http.ResponseWriter, req *http.Request) 
 	}
 }
 
-// func (s *Server) New() {
-// 	s.storage.URLMap = make(map[string]string)
-// }
-
 func (s *Server) AddStorage(stor storage.Storage) {
 	s.storage = stor
 }
-
-// func (s *Server) InitBD(DBaddr string) error {
-// 	conn, err := pgx.Connect(context.Background(), DBaddr)
-// 	if err != nil {
-// 		return errors.Wrap(err, "Error to connect db")
-// 	}
-// 	s.storage.DB = conn
-// 	defer conn.Close(context.Background())
-// 	return nil
-// }
-
-// func (s *Server) GetStorage() {
-// 	log.Println(s.storage.URLMap)
-// }
 
 func (s *Server) AddFilePath(fileName string) {
 	s.filePath = fileName
@@ -282,7 +350,7 @@ func (s *Server) RestorStorage() error {
 			}
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
-			s.storage.InsertURL(ctx, data.ShortURL, data.OriginalURL)
+			s.storage.InsertURL(ctx, data.ShortURL, data.OriginalURL, "")
 		}
 		file.Close()
 		return nil
@@ -315,11 +383,11 @@ func writeURL(fileName string, lastURL restorURL) error {
 // 	s.storage.DB = dataBase
 // }
 
-func (s *Server) saveURL(original string, short string) error {
+func (s *Server) saveURL(original string, short string, userID string) error {
 	logger.Log.Info("Save into db")
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	if err := s.storage.InsertURL(ctx, original, short); err != nil {
+	if err := s.storage.InsertURL(ctx, original, short, userID); err != nil {
 		return err
 	}
 	if s.filePath != "" {
@@ -361,6 +429,16 @@ func (s *Server) getURLByShortURL(short string) (string, error) {
 	return originalURL, nil
 }
 
+func (s *Server) getAllURLs(userID string) ([]models.URLModel, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	userURL, err := s.storage.GetAllUrls(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	return userURL, nil
+}
+
 func (s *Server) getURLByOriginalURL(original string) (string, error) {
 	logger.Log.Info("Get from db")
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -386,4 +464,35 @@ func validationURL(URL string) bool {
 		return true
 	}
 	return false
+}
+
+func CreateJWTToken(uuid string) (string, error) {
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, Claims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 3)),
+		},
+		UserID: uuid,
+	})
+
+	tokenString, err := token.SignedString([]byte(SECRET_KEY))
+	if err != nil {
+		return "", err
+	}
+	return tokenString, nil
+}
+
+func GetUID(tokenString string) string {
+	claim := Claims{}
+
+	token, err := jwt.ParseWithClaims(tokenString, claim, func(t *jwt.Token) (interface{}, error) {
+		return []byte(SECRET_KEY), nil
+	})
+	if err != nil {
+		return ""
+	}
+
+	if !token.Valid {
+		return ""
+	}
+	return claim.UserID
 }

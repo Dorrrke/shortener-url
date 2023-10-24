@@ -14,7 +14,12 @@ type ResponseBatchURLModel struct {
 	CorrID      string `json:"correlation_id"`
 	OriginalURL string `json:"short_url"`
 }
+type URLModel struct {
+	ShortID    string `json:"short_url"`
+	OriginalID string `json:"original_url"`
+}
 type BantchURL struct {
 	OriginalURL string
 	ShortURL    string
+	UserId      string
 }

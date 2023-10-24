@@ -75,7 +75,9 @@ func main() {
 		conn := initDB(DBaddr)
 		URLServer.AddStorage(&storage.DBStorage{DB: conn})
 		defer conn.Close(context.Background())
-	} else {
+	}
+
+	if cfg.dataBaseDsn.DBDSN == "" && DBaddr == "" {
 		URLServer.AddStorage(&storage.MemStorage{URLMap: make(map[string]string)})
 	}
 
@@ -106,9 +108,12 @@ func run(serv server.Server) error {
 	r.Route("/", func(r chi.Router) {
 		r.Post("/", logger.WithLogging(server.GzipMiddleware(serv.ShortenerURLHandler)))
 		r.Get("/{id}", logger.WithLogging(server.GzipMiddleware(serv.GetOriginalURLHandler)))
-		r.Route("/api/shorten", func(r chi.Router) {
-			r.Post("/", logger.WithLogging(server.GzipMiddleware(serv.ShortenerJSONURLHandler)))
-			r.Post("/batch", logger.WithLogging(server.GzipMiddleware(serv.InsertBatchHandler)))
+		r.Route("/api", func(r chi.Router) {
+			r.Get("/user/urls", logger.WithLogging(server.GzipMiddleware(serv.GetAllUrls)))
+			r.Route("/shorten", func(r chi.Router) {
+				r.Post("/", logger.WithLogging(server.GzipMiddleware(serv.ShortenerJSONURLHandler)))
+				r.Post("/batch", logger.WithLogging(server.GzipMiddleware(serv.InsertBatchHandler)))
+			})
 		})
 		r.Get("/ping", logger.WithLogging(server.GzipMiddleware(serv.CheckDBConnectionHandler)))
 	})

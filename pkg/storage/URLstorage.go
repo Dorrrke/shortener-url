@@ -12,7 +12,8 @@ import (
 )
 
 type Storage interface {
-	InsertURL(ctx context.Context, originalURL string, shortURL string) error
+	InsertURL(ctx context.Context, originalURL string, shortURL string, userID string) error
+	GetAllUrls(ctx context.Context, userID string) ([]models.URLModel, error)
 	GetOriginalURLByShort(ctx context.Context, shotURL string) (string, error)
 	GetShortByOriginalURL(ctx context.Context, original string) (string, error)
 	CheckDBConnect(ctx context.Context) error
@@ -30,7 +31,7 @@ type MemStorage struct {
 	URLMap map[string]string
 }
 
-func (s *MemStorage) InsertURL(ctx context.Context, originalURL string, shortURL string) error {
+func (s *MemStorage) InsertURL(ctx context.Context, originalURL string, shortURL string, userID string) error {
 	if s.URLMap == nil {
 		return errors.New("Map is not init")
 	}
@@ -62,6 +63,10 @@ func (s *MemStorage) CheckDBConnect(ctx context.Context) error {
 func (s *MemStorage) CreateTable(ctx context.Context) error {
 	return errors.New("DataBase is not init")
 }
+
+func (s *MemStorage) GetAllUrls(ctx context.Context, userID string) ([]models.URLModel, error) {
+	return nil, errors.New("DataBase is not init")
+}
 func (s *MemStorage) InsertBanchURL(ctx context.Context, value []models.BantchURL) error {
 	if len(s.URLMap) == 0 {
 		return errors.New("Mem Storage is empty")
@@ -76,8 +81,8 @@ type DBStorage struct {
 	DB *pgx.Conn
 }
 
-func (s *DBStorage) InsertURL(ctx context.Context, originalURL string, shortURL string) error {
-	_, err := s.DB.Exec(ctx, "INSERT INTO short_urls (original, short) values ($1, $2)", originalURL, shortURL)
+func (s *DBStorage) InsertURL(ctx context.Context, originalURL string, shortURL string, userID string) error {
+	_, err := s.DB.Exec(ctx, "INSERT INTO short_urls (original, short, uid) values ($1, $2, $3)", originalURL, shortURL, userID)
 	if err != nil {
 		return errors.Wrap(err, "Error while inserting row in db")
 	}
@@ -117,12 +122,38 @@ func (s *DBStorage) CheckDBConnect(ctx context.Context) error {
 	}
 	return nil
 }
+
+func (s *DBStorage) GetAllUrls(ctx context.Context, userID string) ([]models.URLModel, error) {
+	rows, err := s.DB.Query(ctx, "SELECT original, short FROM short_urls where uid = $1", userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var urls []models.URLModel
+
+	for rows.Next() {
+		var url models.URLModel
+		err = rows.Scan(&url.OriginalID, &url.ShortID)
+		if err != nil {
+			return nil, err
+		}
+		urls = append(urls, url)
+	}
+
+	err = rows.Err()
+	if err != nil {
+		return nil, err
+	}
+
+	return urls, nil
+}
 func (s *DBStorage) CreateTable(ctx context.Context) error {
 	createTableStr := `CREATE TABLE IF NOT EXISTS short_urls
 	(
 		url_id serial PRIMARY KEY,
 		original character(255) NOT NULL,
-		short character(255) NOT NULL
+		short character(255) NOT NULL,
+		uid character(255) NOT NULL
 	);
 	
 	create UNIQUE INDEX IF NOT EXISTS original_id ON short_urls (original)`
@@ -140,12 +171,12 @@ func (s *DBStorage) InsertBanchURL(ctx context.Context, value []models.BantchURL
 
 	defer tx.Rollback(ctx)
 
-	if _, err := tx.Prepare(ctx, "insert bantch", "INSERT INTO short_urls (original, short) values ($1, $2)"); err != nil {
+	if _, err := tx.Prepare(ctx, "insert bantch", "INSERT INTO short_urls (original, short, uid) values ($1, $2, $3)"); err != nil {
 		return err
 	}
 
 	for _, v := range value {
-		if _, err := tx.Exec(ctx, "insert bantch", v.OriginalURL, v.ShortURL); err != nil {
+		if _, err := tx.Exec(ctx, "insert bantch", v.OriginalURL, v.ShortURL, v.UserId); err != nil {
 			return err
 		}
 	}
