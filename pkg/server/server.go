@@ -71,7 +71,7 @@ func (s *Server) GetOriginalURLHandler(res http.ResponseWriter, req *http.Reques
 func (s *Server) ShortenerURLHandler(res http.ResponseWriter, req *http.Request) {
 
 	var userID string
-	reqCookie, err := req.Cookie("tokenCookie")
+	reqCookie, err := req.Cookie("auth")
 	if err != nil {
 		userID = uuid.New().String()
 	} else {
@@ -82,8 +82,9 @@ func (s *Server) ShortenerURLHandler(res http.ResponseWriter, req *http.Request)
 		logger.Log.Info("cannot create token", zap.Error(err))
 	}
 	cookie := http.Cookie{
-		Name:  "tokenCookie",
+		Name:  "auth",
 		Value: token,
+		Path:  "/",
 	}
 	http.SetCookie(res, &cookie)
 
@@ -136,7 +137,7 @@ func (s *Server) ShortenerURLHandler(res http.ResponseWriter, req *http.Request)
 func (s *Server) ShortenerJSONURLHandler(res http.ResponseWriter, req *http.Request) {
 
 	var userID string
-	reqCookie, err := req.Cookie("tokenCookie")
+	reqCookie, err := req.Cookie("auth")
 	if err != nil {
 		userID = uuid.New().String()
 	} else {
@@ -147,8 +148,9 @@ func (s *Server) ShortenerJSONURLHandler(res http.ResponseWriter, req *http.Requ
 		logger.Log.Info("cannot create token", zap.Error(err))
 	}
 	cookie := http.Cookie{
-		Name:  "tokenCookie",
+		Name:  "auth",
 		Value: token,
+		Path:  "/",
 	}
 	http.SetCookie(res, &cookie)
 
@@ -224,7 +226,7 @@ func (s *Server) CheckDBConnectionHandler(res http.ResponseWriter, req *http.Req
 }
 
 func (s *Server) GetAllUrls(res http.ResponseWriter, req *http.Request) {
-	reqCookie, err := req.Cookie("tokenCookie")
+	reqCookie, err := req.Cookie("auth")
 	if err != nil {
 		logger.Log.Error("Cookie err", zap.Error(err))
 		http.Error(res, "User unauth", http.StatusUnauthorized)
@@ -252,7 +254,7 @@ func (s *Server) GetAllUrls(res http.ResponseWriter, req *http.Request) {
 
 func (s *Server) InsertBatchHandler(res http.ResponseWriter, req *http.Request) {
 	var userID string
-	reqCookie, err := req.Cookie("tokenCookie")
+	reqCookie, err := req.Cookie("auth")
 	if err != nil {
 		userID = uuid.New().String()
 	} else {
@@ -263,8 +265,9 @@ func (s *Server) InsertBatchHandler(res http.ResponseWriter, req *http.Request) 
 		logger.Log.Info("cannot create token", zap.Error(err))
 	}
 	cookie := http.Cookie{
-		Name:  "tokenCookie",
+		Name:  "auth",
 		Value: token,
+		Path:  "/",
 	}
 	http.SetCookie(res, &cookie)
 
