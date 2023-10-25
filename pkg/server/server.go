@@ -88,12 +88,12 @@ func (s *Server) ShortenerURLHandler(res http.ResponseWriter, req *http.Request)
 		http.SetCookie(res, &cookie)
 	} else {
 		logger.Log.Info("Cookie true")
+		log.Printf("uuid from cookie: " + userID)
 		userID = GetUID(reqCookie.Value)
 		if userID == "" {
 			http.Error(res, "User unauth", http.StatusUnauthorized)
 			return
 		}
-		log.Printf("uuid from cookie: " + userID)
 		http.SetCookie(res, reqCookie)
 	}
 
@@ -511,7 +511,7 @@ func CreateJWTToken(uuid string) (string, error) {
 }
 
 func GetUID(tokenString string) string {
-	claim := Claims{}
+	claim := &Claims{}
 
 	token, err := jwt.ParseWithClaims(tokenString, claim, func(t *jwt.Token) (interface{}, error) {
 		return []byte(SECRET_KEY), nil
@@ -523,5 +523,6 @@ func GetUID(tokenString string) string {
 	if !token.Valid {
 		return ""
 	}
+	log.Printf(claim.UserID)
 	return claim.UserID
 }
