@@ -269,7 +269,7 @@ func (s *Server) GetAllUrls(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 	res.Header().Set("Content-Type", "application/json")
-	res.WriteHeader(http.StatusCreated)
+	res.WriteHeader(http.StatusOK)
 	enc := json.NewEncoder(res)
 	if err := enc.Encode(urls); err != nil {
 		logger.Log.Debug("error encoding responce", zap.Error(err))
