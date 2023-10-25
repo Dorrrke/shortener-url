@@ -21,5 +21,5 @@ type URLModel struct {
 type BantchURL struct {
 	OriginalURL string
 	ShortURL    string
-	UserId      string
+	UserID      string
 }

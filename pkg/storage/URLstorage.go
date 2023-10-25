@@ -178,7 +178,7 @@ func (s *DBStorage) InsertBanchURL(ctx context.Context, value []models.BantchURL
 	}
 
 	for _, v := range value {
-		if _, err := tx.Exec(ctx, "insert bantch", v.OriginalURL, v.ShortURL, v.UserId); err != nil {
+		if _, err := tx.Exec(ctx, "insert bantch", v.OriginalURL, v.ShortURL, v.UserID); err != nil {
 			return err
 		}
 	}

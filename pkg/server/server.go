@@ -320,7 +320,7 @@ func (s *Server) InsertBatchHandler(res http.ResponseWriter, req *http.Request) 
 			bantchValues = append(bantchValues, models.BantchURL{
 				OriginalURL: v.OriginalURL,
 				ShortURL:    shortURL,
-				UserId:      userID,
+				UserID:      userID,
 			})
 			resBatchValues = append(resBatchValues, models.ResponseBatchURLModel{
 				CorrID:      v.CorrID,
