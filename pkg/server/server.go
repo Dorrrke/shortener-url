@@ -73,10 +73,11 @@ func (s *Server) ShortenerURLHandler(res http.ResponseWriter, req *http.Request)
 	var userID string
 	reqCookie, err := req.Cookie("auth")
 	if err != nil {
+		logger.Log.Info("Cookie false")
 		userID = uuid.New().String()
 		token, err := CreateJWTToken(userID)
 		if err != nil {
-			logger.Log.Info("cannot create token", zap.Error(err))
+			logger.Log.Error("cannot create token", zap.Error(err))
 		}
 		cookie := http.Cookie{
 			Name:  "auth",
@@ -85,11 +86,15 @@ func (s *Server) ShortenerURLHandler(res http.ResponseWriter, req *http.Request)
 		}
 		http.SetCookie(res, &cookie)
 	} else {
-		userID = uuid.New().String()
+		logger.Log.Info("Cookie true")
+		userID = GetUID(reqCookie.Value)
+		if userID == "" {
+			http.Error(res, "User unauth", http.StatusUnauthorized)
+			return
+		}
 		http.SetCookie(res, reqCookie)
 	}
 
-	logger.Log.Info("Test logger in handler")
 	body, err := io.ReadAll(req.Body)
 	if err != nil {
 		http.Error(res, err.Error(), 500)
