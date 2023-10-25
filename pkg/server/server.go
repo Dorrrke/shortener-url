@@ -25,7 +25,7 @@ import (
 	"go.uber.org/zap"
 )
 
-const SECRET_KEY = "Secret123Key345Super"
+const SecretKey = "Secret123Key345Super"
 
 type Server struct {
 	storage    storage.Storage
@@ -503,7 +503,7 @@ func CreateJWTToken(uuid string) (string, error) {
 		UserID: uuid,
 	})
 
-	tokenString, err := token.SignedString([]byte(SECRET_KEY))
+	tokenString, err := token.SignedString([]byte(SecretKey))
 	if err != nil {
 		return "", err
 	}
@@ -514,7 +514,7 @@ func GetUID(tokenString string) string {
 	claim := &Claims{}
 
 	token, err := jwt.ParseWithClaims(tokenString, claim, func(t *jwt.Token) (interface{}, error) {
-		return []byte(SECRET_KEY), nil
+		return []byte(SecretKey), nil
 	})
 	if err != nil {
 		return ""
