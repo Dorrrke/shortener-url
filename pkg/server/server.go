@@ -74,19 +74,24 @@ func (s *Server) ShortenerURLHandler(res http.ResponseWriter, req *http.Request)
 	reqCookie, err := req.Cookie("auth")
 	if err != nil {
 		userID = uuid.New().String()
+		token, err := CreateJWTToken(userID)
+		if err != nil {
+			logger.Log.Info("cannot create token", zap.Error(err))
+		}
+		cookie := http.Cookie{
+			Name:  "auth",
+			Value: token,
+			Path:  "/",
+		}
+		http.SetCookie(res, &cookie)
 	} else {
 		userID = GetUID(reqCookie.Value)
+		if userID == "" {
+			http.Error(res, "User unauth", http.StatusUnauthorized)
+			return
+		}
+		http.SetCookie(res, reqCookie)
 	}
-	token, err := CreateJWTToken(userID)
-	if err != nil {
-		logger.Log.Info("cannot create token", zap.Error(err))
-	}
-	cookie := http.Cookie{
-		Name:  "auth",
-		Value: token,
-		Path:  "/",
-	}
-	http.SetCookie(res, &cookie)
 
 	logger.Log.Info("Test logger in handler")
 	body, err := io.ReadAll(req.Body)
@@ -140,19 +145,24 @@ func (s *Server) ShortenerJSONURLHandler(res http.ResponseWriter, req *http.Requ
 	reqCookie, err := req.Cookie("auth")
 	if err != nil {
 		userID = uuid.New().String()
+		token, err := CreateJWTToken(userID)
+		if err != nil {
+			logger.Log.Info("cannot create token", zap.Error(err))
+		}
+		cookie := http.Cookie{
+			Name:  "auth",
+			Value: token,
+			Path:  "/",
+		}
+		http.SetCookie(res, &cookie)
 	} else {
 		userID = GetUID(reqCookie.Value)
+		if userID == "" {
+			http.Error(res, "User unauth", http.StatusUnauthorized)
+			return
+		}
+		http.SetCookie(res, reqCookie)
 	}
-	token, err := CreateJWTToken(userID)
-	if err != nil {
-		logger.Log.Info("cannot create token", zap.Error(err))
-	}
-	cookie := http.Cookie{
-		Name:  "auth",
-		Value: token,
-		Path:  "/",
-	}
-	http.SetCookie(res, &cookie)
 
 	dec := json.NewDecoder(req.Body)
 	var modelURL models.RequestURLJson
@@ -226,22 +236,35 @@ func (s *Server) CheckDBConnectionHandler(res http.ResponseWriter, req *http.Req
 }
 
 func (s *Server) GetAllUrls(res http.ResponseWriter, req *http.Request) {
+	var userID string
 	reqCookie, err := req.Cookie("auth")
 	if err != nil {
-		logger.Log.Error("Cookie err", zap.Error(err))
-		http.Error(res, "User unauth", http.StatusUnauthorized)
-		return
-	}
-	userID := GetUID(reqCookie.Value)
-	if userID == "" {
-		http.Error(res, "User unauth", http.StatusUnauthorized)
-		return
+		userID = uuid.New().String()
+		token, err := CreateJWTToken(userID)
+		if err != nil {
+			logger.Log.Info("cannot create token", zap.Error(err))
+		}
+		cookie := http.Cookie{
+			Name:  "auth",
+			Value: token,
+			Path:  "/",
+		}
+		http.SetCookie(res, &cookie)
+	} else {
+		userID = GetUID(reqCookie.Value)
+		if userID == "" {
+			http.Error(res, "User unauth", http.StatusUnauthorized)
+			return
+		}
+		http.SetCookie(res, reqCookie)
 	}
 	urls, err := s.getAllURLs(userID)
 	if err != nil {
 		http.Error(res, "Не корректный запрос", http.StatusInternalServerError)
 	}
-
+	if len(urls) == 0 {
+		http.Error(res, "Нет сохраненных адресов", http.StatusNoContent)
+	}
 	res.Header().Set("Content-Type", "application/json")
 	res.WriteHeader(http.StatusCreated)
 	enc := json.NewEncoder(res)
