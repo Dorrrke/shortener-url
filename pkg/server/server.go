@@ -84,6 +84,7 @@ func (s *Server) ShortenerURLHandler(res http.ResponseWriter, req *http.Request)
 			Value: token,
 			Path:  "/",
 		}
+		log.Printf("new uuid" + userID)
 		http.SetCookie(res, &cookie)
 	} else {
 		logger.Log.Info("Cookie true")
@@ -92,6 +93,7 @@ func (s *Server) ShortenerURLHandler(res http.ResponseWriter, req *http.Request)
 			http.Error(res, "User unauth", http.StatusUnauthorized)
 			return
 		}
+		log.Printf("uuid from cookie: " + userID)
 		http.SetCookie(res, reqCookie)
 	}
 
@@ -246,6 +248,7 @@ func (s *Server) GetAllUrls(res http.ResponseWriter, req *http.Request) {
 			Value: token,
 			Path:  "/",
 		}
+		log.Printf("new uuid" + userID)
 		http.SetCookie(res, &cookie)
 	} else {
 		userID = GetUID(reqCookie.Value)
@@ -253,6 +256,7 @@ func (s *Server) GetAllUrls(res http.ResponseWriter, req *http.Request) {
 			http.Error(res, "User unauth", http.StatusUnauthorized)
 			return
 		}
+		log.Printf("uuid from cookie: " + userID)
 		http.SetCookie(res, reqCookie)
 	}
 	urls, err := s.getAllURLs(userID)
