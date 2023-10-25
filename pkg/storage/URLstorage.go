@@ -137,6 +137,8 @@ func (s *DBStorage) GetAllUrls(ctx context.Context, userID string) ([]models.URL
 		if err != nil {
 			return nil, err
 		}
+		url.OriginalID = strings.TrimSpace(url.OriginalID)
+		url.ShortID = strings.TrimSpace(url.ShortID)
 		urls = append(urls, url)
 	}
 
