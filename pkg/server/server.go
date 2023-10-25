@@ -253,9 +253,11 @@ func (s *Server) GetAllUrls(res http.ResponseWriter, req *http.Request) {
 	urls, err := s.getAllURLs(userID)
 	if err != nil {
 		http.Error(res, "Не корректный запрос", http.StatusInternalServerError)
+		return
 	}
 	if len(urls) == 0 {
 		http.Error(res, "Нет сохраненных адресов", http.StatusNoContent)
+		return
 	}
 	res.Header().Set("Content-Type", "application/json")
 	res.WriteHeader(http.StatusCreated)
