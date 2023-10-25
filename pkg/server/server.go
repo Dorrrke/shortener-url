@@ -85,11 +85,7 @@ func (s *Server) ShortenerURLHandler(res http.ResponseWriter, req *http.Request)
 		}
 		http.SetCookie(res, &cookie)
 	} else {
-		userID = GetUID(reqCookie.Value)
-		if userID == "" {
-			http.Error(res, "User unauth", http.StatusUnauthorized)
-			return
-		}
+		userID = uuid.New().String()
 		http.SetCookie(res, reqCookie)
 	}
 
