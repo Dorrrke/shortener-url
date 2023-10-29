@@ -47,6 +47,8 @@ func main() {
 	var fileName string
 	var DBaddr string
 
+	URLServer.New()
+
 	flag.Var(&URLServer.ServerConf.HostConfig, "a", "address and port to run server")
 	flag.Var(&URLServer.ServerConf.ShortURLHostConfig, "b", "address and port to run short URL")
 	flag.StringVar(&fileName, "f", "", "storage file path")
@@ -110,6 +112,7 @@ func run(serv server.Server) error {
 		r.Get("/{id}", logger.WithLogging(server.GzipMiddleware(serv.GetOriginalURLHandler)))
 		r.Route("/api", func(r chi.Router) {
 			r.Get("/user/urls", logger.WithLogging(server.GzipMiddleware(serv.GetAllUrls)))
+			r.Delete("/user/urls", logger.WithLogging(server.GzipMiddleware(serv.DeleteURLHandler)))
 			r.Route("/shorten", func(r chi.Router) {
 				r.Post("/", logger.WithLogging(server.GzipMiddleware(serv.ShortenerJSONURLHandler)))
 				r.Post("/batch", logger.WithLogging(server.GzipMiddleware(serv.InsertBatchHandler)))

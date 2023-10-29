@@ -14,11 +14,12 @@ import (
 type Storage interface {
 	InsertURL(ctx context.Context, originalURL string, shortURL string, userID string) error
 	GetAllUrls(ctx context.Context, userID string) ([]models.URLModel, error)
-	GetOriginalURLByShort(ctx context.Context, shotURL string) (string, error)
+	GetOriginalURLByShort(ctx context.Context, shotURL string) (string, bool, error)
 	GetShortByOriginalURL(ctx context.Context, original string) (string, error)
 	CheckDBConnect(ctx context.Context) error
 	CreateTable(ctx context.Context) error
 	InsertBanchURL(ctx context.Context, value []models.BantchURL) error
+	SetDeleteURLStatus(ctx context.Context, value []string) error
 }
 
 // type URLCreatorGetter interface {
@@ -39,11 +40,11 @@ func (s *MemStorage) InsertURL(ctx context.Context, originalURL string, shortURL
 	return nil
 }
 
-func (s *MemStorage) GetOriginalURLByShort(ctx context.Context, shotURL string) (string, error) {
+func (s *MemStorage) GetOriginalURLByShort(ctx context.Context, shotURL string) (string, bool, error) {
 	if len(s.URLMap) == 0 {
-		return "", errors.New("Mem Storage is empty")
+		return "", false, errors.New("Mem Storage is empty")
 	}
-	return s.URLMap[shotURL], nil
+	return s.URLMap[shotURL], false, nil
 }
 func (s *MemStorage) GetShortByOriginalURL(ctx context.Context, original string) (string, error) {
 	var key string
@@ -61,6 +62,10 @@ func (s *MemStorage) CheckDBConnect(ctx context.Context) error {
 	return errors.New("DataBase is not init")
 }
 func (s *MemStorage) CreateTable(ctx context.Context) error {
+	return errors.New("DataBase is not init")
+}
+
+func (s *MemStorage) SetDeleteURLStatus(ctx context.Context, value []string) error {
 	return errors.New("DataBase is not init")
 }
 
@@ -89,19 +94,20 @@ func (s *DBStorage) InsertURL(ctx context.Context, originalURL string, shortURL 
 	return nil
 }
 
-func (s *DBStorage) GetOriginalURLByShort(ctx context.Context, shotURL string) (string, error) {
+func (s *DBStorage) GetOriginalURLByShort(ctx context.Context, shotURL string) (string, bool, error) {
 	logger.Log.Info("Serach shortURL: ", zap.String("1", shotURL))
-	rows := s.DB.QueryRow(ctx, "SELECT original FROM short_urls where short = $1", shotURL)
+	rows := s.DB.QueryRow(ctx, "SELECT original, deleted FROM short_urls where short = $1", shotURL)
 	// if err != nil {
 	// 	return "", errors.Wrap(err, "Error when getting row from db")
 	// }
-	var result string
+	var original string
+	var deleted bool
 
-	if err := rows.Scan(&result); err != nil {
-		return "", errors.Wrap(err, "Error parsing db info")
+	if err := rows.Scan(&original, &deleted); err != nil {
+		return "", false, errors.Wrap(err, "Error parsing db info")
 	}
 
-	return result, nil
+	return original, deleted, nil
 }
 func (s *DBStorage) GetShortByOriginalURL(ctx context.Context, original string) (string, error) {
 	rows := s.DB.QueryRow(ctx, "SELECT short FROM short_urls where original = $1", original)
@@ -155,7 +161,8 @@ func (s *DBStorage) CreateTable(ctx context.Context) error {
 		url_id serial PRIMARY KEY,
 		original character(255) NOT NULL,
 		short character(255) NOT NULL,
-		uid character(255) NOT NULL
+		uid character(255) NOT NULL,
+		deleted boolean NOT NULL DEFAULT false
 	);
 	
 	create UNIQUE INDEX IF NOT EXISTS original_id ON short_urls (original)`
@@ -179,6 +186,26 @@ func (s *DBStorage) InsertBanchURL(ctx context.Context, value []models.BantchURL
 
 	for _, v := range value {
 		if _, err := tx.Exec(ctx, "insert bantch", v.OriginalURL, v.ShortURL, v.UserID); err != nil {
+			return err
+		}
+	}
+	return tx.Commit(ctx)
+}
+
+func (s *DBStorage) SetDeleteURLStatus(ctx context.Context, value []string) error {
+	tx, err := s.DB.Begin(ctx)
+	if err != nil {
+		return err
+	}
+
+	defer tx.Rollback(ctx)
+
+	if _, err := tx.Prepare(ctx, "delete", "UPDATE short_urls SET deleted=true WHERE short=$1"); err != nil {
+		return err
+	}
+
+	for _, v := range value {
+		if _, err := tx.Exec(ctx, "delete", v); err != nil {
 			return err
 		}
 	}

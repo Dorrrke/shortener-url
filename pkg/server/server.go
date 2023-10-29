@@ -28,9 +28,10 @@ import (
 const SecretKey = "Secret123Key345Super"
 
 type Server struct {
-	storage    storage.Storage
-	ServerConf config.Config
-	filePath   string
+	storage       storage.Storage
+	ServerConf    config.Config
+	filePath      string
+	deleteQuereCh chan string
 }
 
 type restorURL struct {
@@ -52,10 +53,14 @@ func (s *Server) GetOriginalURLHandler(res http.ResponseWriter, req *http.Reques
 		} else {
 			shortURL = "http://" + s.ServerConf.ShortURLHostConfig.String() + "/" + URLId
 		}
-		url, err := s.getURLByShortURL(shortURL)
+		url, deteted, err := s.getURLByShortURL(shortURL)
 		if err != nil {
 			logger.Log.Error("Error when read from base: ", zap.Error(err))
 			http.Error(res, "Не корректный запрос", http.StatusBadRequest)
+			return
+		}
+		if deteted {
+			res.WriteHeader(http.StatusGone)
 			return
 		}
 		if url != "" {
@@ -348,6 +353,51 @@ func (s *Server) InsertBatchHandler(res http.ResponseWriter, req *http.Request) 
 	}
 }
 
+func (s *Server) DeleteURLHandler(res http.ResponseWriter, req *http.Request) {
+	var userID string
+	reqCookie, err := req.Cookie("auth")
+	if err != nil {
+		userID = uuid.New().String()
+		token, err := CreateJWTToken(userID)
+		if err != nil {
+			logger.Log.Info("cannot create token", zap.Error(err))
+		}
+		cookie := http.Cookie{
+			Name:  "auth",
+			Value: token,
+			Path:  "/",
+		}
+		log.Printf("new uuid" + userID)
+		http.SetCookie(res, &cookie)
+	} else {
+		userID = GetUID(reqCookie.Value)
+		if userID == "" {
+			http.Error(res, "User unauth", http.StatusUnauthorized)
+			return
+		}
+		log.Printf("uuid from cookie: " + userID)
+		http.SetCookie(res, reqCookie)
+	}
+
+	dec := json.NewDecoder(req.Body)
+	var moodel []string
+	if err := dec.Decode(&moodel); err != nil {
+		logger.Log.Error("cannot decod boby json", zap.Error(err))
+	}
+	go func() {
+		for _, data := range moodel {
+			var deleteURL string
+			if s.ServerConf.ShortURLHostConfig.Host == "" {
+				deleteURL = "http://" + req.Host + "/" + data
+			} else {
+				deleteURL = "http://" + s.ServerConf.ShortURLHostConfig.String() + "/" + data
+			}
+			s.deleteQuereCh <- deleteURL
+		}
+	}()
+	res.WriteHeader(http.StatusAccepted)
+}
+
 func (s *Server) AddStorage(stor storage.Storage) {
 	s.storage = stor
 }
@@ -447,15 +497,16 @@ func (s *Server) SaveURLBatch(batch []models.BantchURL) error {
 	return nil
 }
 
-func (s *Server) getURLByShortURL(short string) (string, error) {
+func (s *Server) getURLByShortURL(short string) (string, bool, error) {
 	logger.Log.Info("Get from db")
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	originalURL, err := s.storage.GetOriginalURLByShort(ctx, short)
+	originalURL, deleted, err := s.storage.GetOriginalURLByShort(ctx, short)
 	if err != nil {
-		return "", err
+		return "", false, err
 	}
-	return originalURL, nil
+
+	return originalURL, deleted, nil
 }
 
 func (s *Server) getAllURLs(userID string) ([]models.URLModel, error) {
@@ -525,4 +576,33 @@ func GetUID(tokenString string) string {
 	}
 	log.Printf(claim.UserID)
 	return claim.UserID
+}
+func (s *Server) New() {
+	s.deleteQuereCh = make(chan string, 5)
+	go s.deleteUrls()
+}
+
+func (s *Server) deleteUrls() {
+	timer := time.NewTicker(5 * time.Second)
+
+	var deleteQueue []string
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	for {
+		select {
+		case row := <-s.deleteQuereCh:
+			deleteQueue = append(deleteQueue, row)
+		case <-timer.C:
+			if len(deleteQueue) == 0 {
+				continue
+			}
+		}
+
+		if err := s.storage.SetDeleteURLStatus(ctx, deleteQueue); err != nil {
+			logger.Log.Error("Dlete status", zap.Error(err))
+			continue
+		}
+
+		deleteQueue = nil
+	}
 }
