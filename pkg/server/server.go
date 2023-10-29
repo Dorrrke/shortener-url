@@ -583,7 +583,7 @@ func (s *Server) New() {
 }
 
 func (s *Server) deleteUrls() {
-	timer := time.NewTicker(5 * time.Second)
+	timer := time.NewTicker(3 * time.Second)
 
 	var deleteQueue []string
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
