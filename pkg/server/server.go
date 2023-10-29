@@ -255,6 +255,8 @@ func (s *Server) GetAllUrls(res http.ResponseWriter, req *http.Request) {
 		}
 		log.Printf("new uuid" + userID)
 		http.SetCookie(res, &cookie)
+		http.Error(res, "User unauth", http.StatusUnauthorized)
+		return
 	} else {
 		userID = GetUID(reqCookie.Value)
 		if userID == "" {
