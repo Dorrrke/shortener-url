@@ -6,7 +6,7 @@ import (
 
 	"github.com/Dorrrke/shortener-url/internal/logger"
 	"github.com/Dorrrke/shortener-url/pkg/models"
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )
@@ -83,7 +83,7 @@ func (s *MemStorage) InsertBanchURL(ctx context.Context, value []models.BantchUR
 }
 
 type DBStorage struct {
-	DB *pgx.Conn
+	DB *pgxpool.Pool
 }
 
 func (s *DBStorage) InsertURL(ctx context.Context, originalURL string, shortURL string, userID string) error {

@@ -11,7 +11,7 @@ import (
 	"github.com/Dorrrke/shortener-url/pkg/storage"
 	"github.com/caarlos0/env/v6"
 	"github.com/go-chi/chi/v5"
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 )
 
@@ -68,7 +68,7 @@ func main() {
 	if dbDsnErr == nil {
 		conn := initDB(cfg.dataBaseDsn.DBDSN)
 		URLServer.AddStorage(&storage.DBStorage{DB: conn})
-		defer conn.Close(context.Background())
+		defer conn.Close()
 	}
 	logger.Log.Info("DataBase URL env: " + cfg.dataBaseDsn.DBDSN)
 	logger.Log.Info("DataBase URL flag: " + DBaddr)
@@ -76,7 +76,7 @@ func main() {
 	if cfg.dataBaseDsn.DBDSN == "" && DBaddr != "" {
 		conn := initDB(DBaddr)
 		URLServer.AddStorage(&storage.DBStorage{DB: conn})
-		defer conn.Close(context.Background())
+		defer conn.Close()
 	}
 
 	if cfg.dataBaseDsn.DBDSN == "" && DBaddr == "" {
@@ -128,12 +128,12 @@ func run(serv server.Server) error {
 	}
 }
 
-func initDB(DBAddr string) *pgx.Conn {
-	conn, err := pgx.Connect(context.Background(), DBAddr)
+func initDB(DBAddr string) *pgxpool.Pool {
+	pool, err := pgxpool.New(context.Background(), DBAddr)
 	if err != nil {
 		logger.Log.Error("Error wile init db driver: " + err.Error())
 		panic(err)
 	}
-	return conn
+	return pool
 
 }
