@@ -11,7 +11,7 @@ import (
 	"github.com/Dorrrke/shortener-url/pkg/storage"
 	"github.com/caarlos0/env/v6"
 	"github.com/go-chi/chi/v5"
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 )
 
@@ -47,6 +47,8 @@ func main() {
 	var fileName string
 	var DBaddr string
 
+	URLServer.New()
+
 	flag.Var(&URLServer.ServerConf.HostConfig, "a", "address and port to run server")
 	flag.Var(&URLServer.ServerConf.ShortURLHostConfig, "b", "address and port to run short URL")
 	flag.StringVar(&fileName, "f", "", "storage file path")
@@ -66,7 +68,7 @@ func main() {
 	if dbDsnErr == nil {
 		conn := initDB(cfg.dataBaseDsn.DBDSN)
 		URLServer.AddStorage(&storage.DBStorage{DB: conn})
-		defer conn.Close(context.Background())
+		defer conn.Close()
 	}
 	logger.Log.Info("DataBase URL env: " + cfg.dataBaseDsn.DBDSN)
 	logger.Log.Info("DataBase URL flag: " + DBaddr)
@@ -74,8 +76,10 @@ func main() {
 	if cfg.dataBaseDsn.DBDSN == "" && DBaddr != "" {
 		conn := initDB(DBaddr)
 		URLServer.AddStorage(&storage.DBStorage{DB: conn})
-		defer conn.Close(context.Background())
-	} else {
+		defer conn.Close()
+	}
+
+	if cfg.dataBaseDsn.DBDSN == "" && DBaddr == "" {
 		URLServer.AddStorage(&storage.MemStorage{URLMap: make(map[string]string)})
 	}
 
@@ -106,9 +110,13 @@ func run(serv server.Server) error {
 	r.Route("/", func(r chi.Router) {
 		r.Post("/", logger.WithLogging(server.GzipMiddleware(serv.ShortenerURLHandler)))
 		r.Get("/{id}", logger.WithLogging(server.GzipMiddleware(serv.GetOriginalURLHandler)))
-		r.Route("/api/shorten", func(r chi.Router) {
-			r.Post("/", logger.WithLogging(server.GzipMiddleware(serv.ShortenerJSONURLHandler)))
-			r.Post("/batch", logger.WithLogging(server.GzipMiddleware(serv.InsertBatchHandler)))
+		r.Route("/api", func(r chi.Router) {
+			r.Get("/user/urls", logger.WithLogging(server.GzipMiddleware(serv.GetAllUrls)))
+			r.Delete("/user/urls", logger.WithLogging(server.GzipMiddleware(serv.DeleteURLHandler)))
+			r.Route("/shorten", func(r chi.Router) {
+				r.Post("/", logger.WithLogging(server.GzipMiddleware(serv.ShortenerJSONURLHandler)))
+				r.Post("/batch", logger.WithLogging(server.GzipMiddleware(serv.InsertBatchHandler)))
+			})
 		})
 		r.Get("/ping", logger.WithLogging(server.GzipMiddleware(serv.CheckDBConnectionHandler)))
 	})
@@ -120,12 +128,12 @@ func run(serv server.Server) error {
 	}
 }
 
-func initDB(DBAddr string) *pgx.Conn {
-	conn, err := pgx.Connect(context.Background(), DBAddr)
+func initDB(DBAddr string) *pgxpool.Pool {
+	pool, err := pgxpool.New(context.Background(), DBAddr)
 	if err != nil {
 		logger.Log.Error("Error wile init db driver: " + err.Error())
 		panic(err)
 	}
-	return conn
+	return pool
 
 }

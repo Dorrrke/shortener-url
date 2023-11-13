@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/pkg/errors"
@@ -24,15 +25,23 @@ import (
 	"go.uber.org/zap"
 )
 
+const SecretKey = "Secret123Key345Super"
+
 type Server struct {
-	storage    storage.Storage
-	ServerConf config.Config
-	filePath   string
+	storage       storage.Storage
+	ServerConf    config.Config
+	filePath      string
+	deleteQuereCh chan string
 }
 
 type restorURL struct {
 	ShortURL    string `json:"short_url"`
 	OriginalURL string `json:"original_url"`
+}
+
+type Claims struct {
+	jwt.RegisteredClaims
+	UserID string
 }
 
 func (s *Server) GetOriginalURLHandler(res http.ResponseWriter, req *http.Request) {
@@ -44,10 +53,14 @@ func (s *Server) GetOriginalURLHandler(res http.ResponseWriter, req *http.Reques
 		} else {
 			shortURL = "http://" + s.ServerConf.ShortURLHostConfig.String() + "/" + URLId
 		}
-		url, err := s.getURLByShortURL(shortURL)
+		url, deteted, err := s.getURLByShortURL(shortURL)
 		if err != nil {
 			logger.Log.Error("Error when read from base: ", zap.Error(err))
 			http.Error(res, "Не корректный запрос", http.StatusBadRequest)
+			return
+		}
+		if deteted {
+			res.WriteHeader(http.StatusGone)
 			return
 		}
 		if url != "" {
@@ -62,7 +75,33 @@ func (s *Server) GetOriginalURLHandler(res http.ResponseWriter, req *http.Reques
 
 func (s *Server) ShortenerURLHandler(res http.ResponseWriter, req *http.Request) {
 
-	logger.Log.Info("Test logger in handler")
+	var userID string
+	reqCookie, err := req.Cookie("auth")
+	if err != nil {
+		logger.Log.Info("Cookie false")
+		userID = uuid.New().String()
+		token, err := createJWTToken(userID)
+		if err != nil {
+			logger.Log.Error("cannot create token", zap.Error(err))
+		}
+		cookie := http.Cookie{
+			Name:  "auth",
+			Value: token,
+			Path:  "/",
+		}
+		log.Printf("new uuid" + userID)
+		http.SetCookie(res, &cookie)
+	} else {
+		logger.Log.Info("Cookie true")
+		log.Printf("uuid from cookie: " + userID)
+		userID = GetUID(reqCookie.Value)
+		if userID == "" {
+			http.Error(res, "User unauth", http.StatusUnauthorized)
+			return
+		}
+		http.SetCookie(res, reqCookie)
+	}
+
 	body, err := io.ReadAll(req.Body)
 	if err != nil {
 		http.Error(res, err.Error(), 500)
@@ -80,7 +119,7 @@ func (s *Server) ShortenerURLHandler(res http.ResponseWriter, req *http.Request)
 		result = "http://" + s.ServerConf.ShortURLHostConfig.String() + "/" + urlID
 	}
 
-	if err := s.saveURL(string(body), result); err != nil {
+	if err := s.saveURL(string(body), result, userID); err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {
 			if !pgerrcode.IsIntegrityConstraintViolation(pgErr.Code) {
@@ -102,7 +141,6 @@ func (s *Server) ShortenerURLHandler(res http.ResponseWriter, req *http.Request)
 			return
 		}
 	}
-
 	res.Header().Set("content-type", "text/plain")
 	res.WriteHeader(http.StatusCreated)
 	res.Write([]byte(result))
@@ -110,6 +148,25 @@ func (s *Server) ShortenerURLHandler(res http.ResponseWriter, req *http.Request)
 }
 
 func (s *Server) ShortenerJSONURLHandler(res http.ResponseWriter, req *http.Request) {
+
+	var userID string
+	reqCookie, err := req.Cookie("auth")
+	if err != nil {
+		userID = uuid.New().String()
+		token, err := createJWTToken(userID)
+		if err != nil {
+			logger.Log.Info("cannot create token", zap.Error(err))
+		}
+		cookie := http.Cookie{
+			Name:  "auth",
+			Value: token,
+			Path:  "/",
+		}
+		http.SetCookie(res, &cookie)
+	} else {
+		userID = uuid.New().String()
+		http.SetCookie(res, reqCookie)
+	}
 
 	dec := json.NewDecoder(req.Body)
 	var modelURL models.RequestURLJson
@@ -128,7 +185,7 @@ func (s *Server) ShortenerJSONURLHandler(res http.ResponseWriter, req *http.Requ
 	} else {
 		result = "http://" + s.ServerConf.ShortURLHostConfig.String() + "/" + urlID
 	}
-	if err := s.saveURL(modelURL.URLAddres, result); err != nil {
+	if err := s.saveURL(modelURL.URLAddres, result, userID); err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {
 			if pgerrcode.IsIntegrityConstraintViolation(pgErr.Code) {
@@ -182,7 +239,71 @@ func (s *Server) CheckDBConnectionHandler(res http.ResponseWriter, req *http.Req
 	res.WriteHeader(http.StatusOK)
 }
 
+func (s *Server) GetAllUrls(res http.ResponseWriter, req *http.Request) {
+	var userID string
+	reqCookie, err := req.Cookie("auth")
+	if err != nil {
+		userID = uuid.New().String()
+		token, err := createJWTToken(userID)
+		if err != nil {
+			logger.Log.Info("cannot create token", zap.Error(err))
+		}
+		cookie := http.Cookie{
+			Name:  "auth",
+			Value: token,
+			Path:  "/",
+		}
+		log.Printf("new uuid" + userID)
+		http.SetCookie(res, &cookie)
+		http.Error(res, "User unauth", http.StatusUnauthorized)
+		return
+	} else {
+		userID = GetUID(reqCookie.Value)
+		if userID == "" {
+			http.Error(res, "User unauth", http.StatusUnauthorized)
+			return
+		}
+		log.Printf("uuid from cookie: " + userID)
+		http.SetCookie(res, reqCookie)
+	}
+	urls, err := s.getAllURLs(userID)
+	if err != nil {
+		http.Error(res, "Не корректный запрос", http.StatusInternalServerError)
+		return
+	}
+	if len(urls) == 0 {
+		http.Error(res, "Нет сохраненных адресов", http.StatusNoContent)
+		return
+	}
+	res.Header().Set("Content-Type", "application/json")
+	res.WriteHeader(http.StatusOK)
+	enc := json.NewEncoder(res)
+	if err := enc.Encode(urls); err != nil {
+		logger.Log.Debug("error encoding responce", zap.Error(err))
+		http.Error(res, "Не корректный запрос", http.StatusInternalServerError)
+	}
+
+}
+
 func (s *Server) InsertBatchHandler(res http.ResponseWriter, req *http.Request) {
+	var userID string
+	reqCookie, err := req.Cookie("auth")
+	if err != nil {
+		userID = uuid.New().String()
+	} else {
+		userID = GetUID(reqCookie.Value)
+	}
+	token, err := createJWTToken(userID)
+	if err != nil {
+		logger.Log.Info("cannot create token", zap.Error(err))
+	}
+	cookie := http.Cookie{
+		Name:  "auth",
+		Value: token,
+		Path:  "/",
+	}
+	http.SetCookie(res, &cookie)
+
 	dec := json.NewDecoder(req.Body)
 	var modelURL []models.RequestBatchURLModel
 	if err := dec.Decode(&modelURL); err != nil {
@@ -206,6 +327,7 @@ func (s *Server) InsertBatchHandler(res http.ResponseWriter, req *http.Request) 
 			bantchValues = append(bantchValues, models.BantchURL{
 				OriginalURL: v.OriginalURL,
 				ShortURL:    shortURL,
+				UserID:      userID,
 			})
 			resBatchValues = append(resBatchValues, models.ResponseBatchURLModel{
 				CorrID:      v.CorrID,
@@ -233,27 +355,56 @@ func (s *Server) InsertBatchHandler(res http.ResponseWriter, req *http.Request) 
 	}
 }
 
-// func (s *Server) New() {
-// 	s.storage.URLMap = make(map[string]string)
-// }
+func (s *Server) DeleteURLHandler(res http.ResponseWriter, req *http.Request) {
+	var userID string
+	reqCookie, err := req.Cookie("auth")
+	if err != nil {
+		userID = uuid.New().String()
+		token, err := createJWTToken(userID)
+		if err != nil {
+			logger.Log.Info("cannot create token", zap.Error(err))
+			http.Error(res, "Cannot create token", http.StatusInternalServerError)
+			return
+		}
+		cookie := http.Cookie{
+			Name:  "auth",
+			Value: token,
+			Path:  "/",
+		}
+		log.Printf("new uuid" + userID)
+		http.SetCookie(res, &cookie)
+	} else {
+		userID = GetUID(reqCookie.Value)
+		if userID == "" {
+			http.Error(res, "User unauth", http.StatusUnauthorized)
+			return
+		}
+		log.Printf("uuid from cookie: " + userID)
+		http.SetCookie(res, reqCookie)
+	}
+
+	dec := json.NewDecoder(req.Body)
+	var moodel []string
+	if err := dec.Decode(&moodel); err != nil {
+		logger.Log.Error("cannot decod boby json", zap.Error(err))
+	}
+	go func() {
+		for _, data := range moodel {
+			var deleteURL string
+			if s.ServerConf.ShortURLHostConfig.Host == "" {
+				deleteURL = "http://" + req.Host + "/" + data
+			} else {
+				deleteURL = "http://" + s.ServerConf.ShortURLHostConfig.String() + "/" + data
+			}
+			s.deleteQuereCh <- deleteURL
+		}
+	}()
+	res.WriteHeader(http.StatusAccepted)
+}
 
 func (s *Server) AddStorage(stor storage.Storage) {
 	s.storage = stor
 }
-
-// func (s *Server) InitBD(DBaddr string) error {
-// 	conn, err := pgx.Connect(context.Background(), DBaddr)
-// 	if err != nil {
-// 		return errors.Wrap(err, "Error to connect db")
-// 	}
-// 	s.storage.DB = conn
-// 	defer conn.Close(context.Background())
-// 	return nil
-// }
-
-// func (s *Server) GetStorage() {
-// 	log.Println(s.storage.URLMap)
-// }
 
 func (s *Server) AddFilePath(fileName string) {
 	s.filePath = fileName
@@ -282,7 +433,7 @@ func (s *Server) RestorStorage() error {
 			}
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
-			s.storage.InsertURL(ctx, data.ShortURL, data.OriginalURL)
+			s.storage.InsertURL(ctx, data.ShortURL, data.OriginalURL, "")
 		}
 		file.Close()
 		return nil
@@ -315,11 +466,11 @@ func writeURL(fileName string, lastURL restorURL) error {
 // 	s.storage.DB = dataBase
 // }
 
-func (s *Server) saveURL(original string, short string) error {
+func (s *Server) saveURL(original string, short string, userID string) error {
 	logger.Log.Info("Save into db")
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	if err := s.storage.InsertURL(ctx, original, short); err != nil {
+	if err := s.storage.InsertURL(ctx, original, short, userID); err != nil {
 		return err
 	}
 	if s.filePath != "" {
@@ -350,15 +501,26 @@ func (s *Server) SaveURLBatch(batch []models.BantchURL) error {
 	return nil
 }
 
-func (s *Server) getURLByShortURL(short string) (string, error) {
+func (s *Server) getURLByShortURL(short string) (string, bool, error) {
 	logger.Log.Info("Get from db")
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	originalURL, err := s.storage.GetOriginalURLByShort(ctx, short)
+	originalURL, deleted, err := s.storage.GetOriginalURLByShort(ctx, short)
 	if err != nil {
-		return "", err
+		return "", false, err
 	}
-	return originalURL, nil
+
+	return originalURL, deleted, nil
+}
+
+func (s *Server) getAllURLs(userID string) ([]models.URLModel, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	userURL, err := s.storage.GetAllUrls(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	return userURL, nil
 }
 
 func (s *Server) getURLByOriginalURL(original string) (string, error) {
@@ -386,4 +548,61 @@ func validationURL(URL string) bool {
 		return true
 	}
 	return false
+}
+
+func createJWTToken(uuid string) (string, error) {
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, Claims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 3)),
+		},
+		UserID: uuid,
+	})
+
+	tokenString, err := token.SignedString([]byte(SecretKey))
+	if err != nil {
+		return "", err
+	}
+	return tokenString, nil
+}
+
+func GetUID(tokenString string) string {
+	claim := &Claims{}
+
+	token, err := jwt.ParseWithClaims(tokenString, claim, func(t *jwt.Token) (interface{}, error) {
+		return []byte(SecretKey), nil
+	})
+	if err != nil {
+		return ""
+	}
+
+	if !token.Valid {
+		return ""
+	}
+	log.Printf(claim.UserID)
+	return claim.UserID
+}
+func (s *Server) New() {
+	s.deleteQuereCh = make(chan string, 5)
+	go s.deleteUrls()
+}
+
+func (s *Server) deleteUrls() {
+
+	var deleteQueue []string
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	for {
+		select {
+		case row := <-s.deleteQuereCh:
+			deleteQueue = append(deleteQueue, row)
+		default:
+			if deleteQueue != nil {
+				if err := s.storage.SetDeleteURLStatus(ctx, deleteQueue); err != nil {
+					logger.Log.Error("Dlete status", zap.Error(err))
+					continue
+				}
+				deleteQueue = nil
+			}
+		}
+	}
 }
