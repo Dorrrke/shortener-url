@@ -80,7 +80,7 @@ func (s *Server) ShortenerURLHandler(res http.ResponseWriter, req *http.Request)
 	if err != nil {
 		logger.Log.Info("Cookie false")
 		userID = uuid.New().String()
-		token, err := CreateJWTToken(userID)
+		token, err := createJWTToken(userID)
 		if err != nil {
 			logger.Log.Error("cannot create token", zap.Error(err))
 		}
@@ -153,7 +153,7 @@ func (s *Server) ShortenerJSONURLHandler(res http.ResponseWriter, req *http.Requ
 	reqCookie, err := req.Cookie("auth")
 	if err != nil {
 		userID = uuid.New().String()
-		token, err := CreateJWTToken(userID)
+		token, err := createJWTToken(userID)
 		if err != nil {
 			logger.Log.Info("cannot create token", zap.Error(err))
 		}
@@ -244,7 +244,7 @@ func (s *Server) GetAllUrls(res http.ResponseWriter, req *http.Request) {
 	reqCookie, err := req.Cookie("auth")
 	if err != nil {
 		userID = uuid.New().String()
-		token, err := CreateJWTToken(userID)
+		token, err := createJWTToken(userID)
 		if err != nil {
 			logger.Log.Info("cannot create token", zap.Error(err))
 		}
@@ -293,7 +293,7 @@ func (s *Server) InsertBatchHandler(res http.ResponseWriter, req *http.Request) 
 	} else {
 		userID = GetUID(reqCookie.Value)
 	}
-	token, err := CreateJWTToken(userID)
+	token, err := createJWTToken(userID)
 	if err != nil {
 		logger.Log.Info("cannot create token", zap.Error(err))
 	}
@@ -360,9 +360,11 @@ func (s *Server) DeleteURLHandler(res http.ResponseWriter, req *http.Request) {
 	reqCookie, err := req.Cookie("auth")
 	if err != nil {
 		userID = uuid.New().String()
-		token, err := CreateJWTToken(userID)
+		token, err := createJWTToken(userID)
 		if err != nil {
 			logger.Log.Info("cannot create token", zap.Error(err))
+			http.Error(res, "Cannot create token", http.StatusInternalServerError)
+			return
 		}
 		cookie := http.Cookie{
 			Name:  "auth",
@@ -548,7 +550,7 @@ func validationURL(URL string) bool {
 	return false
 }
 
-func CreateJWTToken(uuid string) (string, error) {
+func createJWTToken(uuid string) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, Claims{
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 3)),
@@ -585,7 +587,6 @@ func (s *Server) New() {
 }
 
 func (s *Server) deleteUrls() {
-	timer := time.NewTicker(1 * time.Second)
 
 	var deleteQueue []string
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -594,17 +595,14 @@ func (s *Server) deleteUrls() {
 		select {
 		case row := <-s.deleteQuereCh:
 			deleteQueue = append(deleteQueue, row)
-		case <-timer.C:
-			if len(deleteQueue) == 0 {
-				continue
+		default:
+			if deleteQueue != nil {
+				if err := s.storage.SetDeleteURLStatus(ctx, deleteQueue); err != nil {
+					logger.Log.Error("Dlete status", zap.Error(err))
+					continue
+				}
+				deleteQueue = nil
 			}
 		}
-
-		if err := s.storage.SetDeleteURLStatus(ctx, deleteQueue); err != nil {
-			logger.Log.Error("Dlete status", zap.Error(err))
-			continue
-		}
-
-		deleteQueue = nil
 	}
 }
