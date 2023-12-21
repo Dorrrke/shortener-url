@@ -6,6 +6,8 @@ import (
 	"log"
 	"net/http"
 
+	_ "net/http/pprof"
+
 	"github.com/Dorrrke/shortener-url/internal/logger"
 	"github.com/Dorrrke/shortener-url/pkg/server"
 	"github.com/Dorrrke/shortener-url/pkg/storage"
