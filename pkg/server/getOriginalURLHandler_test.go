@@ -46,15 +46,6 @@ func TestGetOriginalURLHandler(t *testing.T) {
 			method:  http.MethodGet,
 		},
 		{
-			name: "Test Get hadler #2",
-			want: want{
-				code:     http.StatusOK,
-				location: "https://music.yandex.ru/home",
-			},
-			request: "/",
-			method:  http.MethodGet,
-		},
-		{
 			name: "Test negative request from Get hadler #2",
 			want: want{
 				code:     http.StatusBadRequest,

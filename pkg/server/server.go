@@ -54,6 +54,8 @@ func (s *Server) GetOriginalURLHandler(res http.ResponseWriter, req *http.Reques
 			shortURL = "http://" + s.ServerConf.ShortURLHostConfig.String() + "/" + URLId
 		}
 		url, deteted, err := s.getURLByShortURL(shortURL)
+		logger.Log.Info("delete status: ", zap.Bool("Delete", deteted))
+		log.Println(deteted)
 		if err != nil {
 			logger.Log.Error("Error when read from base: ", zap.Error(err))
 			http.Error(res, "Не корректный запрос", http.StatusBadRequest)
@@ -229,8 +231,7 @@ func (s *Server) ShortenerJSONURLHandler(res http.ResponseWriter, req *http.Requ
 }
 
 func (s *Server) CheckDBConnectionHandler(res http.ResponseWriter, req *http.Request) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+	ctx := context.Background()
 	if err := s.storage.CheckDBConnect(ctx); err != nil {
 		log.Printf("Error check connection: %v", err.Error())
 		res.WriteHeader(http.StatusInternalServerError)
@@ -290,24 +291,34 @@ func (s *Server) InsertBatchHandler(res http.ResponseWriter, req *http.Request) 
 	reqCookie, err := req.Cookie("auth")
 	if err != nil {
 		userID = uuid.New().String()
+		token, err := createJWTToken(userID)
+		if err != nil {
+			logger.Log.Info("cannot create token", zap.Error(err))
+			http.Error(res, "Cannot create token", http.StatusInternalServerError)
+			return
+		}
+		cookie := http.Cookie{
+			Name:  "auth",
+			Value: token,
+			Path:  "/",
+		}
+		log.Printf("new uuid" + userID)
+		http.SetCookie(res, &cookie)
 	} else {
 		userID = GetUID(reqCookie.Value)
+		if userID == "" {
+			http.Error(res, "User unauth", http.StatusUnauthorized)
+			return
+		}
+		log.Printf("uuid from cookie: " + userID)
+		http.SetCookie(res, reqCookie)
 	}
-	token, err := createJWTToken(userID)
-	if err != nil {
-		logger.Log.Info("cannot create token", zap.Error(err))
-	}
-	cookie := http.Cookie{
-		Name:  "auth",
-		Value: token,
-		Path:  "/",
-	}
-	http.SetCookie(res, &cookie)
 
 	dec := json.NewDecoder(req.Body)
 	var modelURL []models.RequestBatchURLModel
 	if err := dec.Decode(&modelURL); err != nil {
 		logger.Log.Error("cannot decod boby json", zap.Error(err))
+		http.Error(res, "Ошибка при разборе данных", http.StatusInternalServerError)
 	}
 	if len(modelURL) == 0 {
 		http.Error(res, "Не корректный запрос", http.StatusBadRequest)
@@ -462,14 +473,9 @@ func writeURL(fileName string, lastURL restorURL) error {
 	return nil
 }
 
-// func (s *Server) AddDB(dataBase *pgx.Conn) {
-// 	s.storage.DB = dataBase
-// }
-
 func (s *Server) saveURL(original string, short string, userID string) error {
 	logger.Log.Info("Save into db")
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+	ctx := context.Background()
 	if err := s.storage.InsertURL(ctx, original, short, userID); err != nil {
 		return err
 	}
@@ -484,8 +490,7 @@ func (s *Server) saveURL(original string, short string, userID string) error {
 }
 
 func (s *Server) SaveURLBatch(batch []models.BantchURL) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+	ctx := context.Background()
 	if err := s.storage.InsertBanchURL(ctx, batch); err != nil {
 		return err
 	}
@@ -503,8 +508,7 @@ func (s *Server) SaveURLBatch(batch []models.BantchURL) error {
 
 func (s *Server) getURLByShortURL(short string) (string, bool, error) {
 	logger.Log.Info("Get from db")
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+	ctx := context.Background()
 	originalURL, deleted, err := s.storage.GetOriginalURLByShort(ctx, short)
 	if err != nil {
 		return "", false, err
@@ -514,8 +518,7 @@ func (s *Server) getURLByShortURL(short string) (string, bool, error) {
 }
 
 func (s *Server) getAllURLs(userID string) ([]models.URLModel, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+	ctx := context.Background()
 	userURL, err := s.storage.GetAllUrls(ctx, userID)
 	if err != nil {
 		return nil, err
@@ -525,8 +528,7 @@ func (s *Server) getAllURLs(userID string) ([]models.URLModel, error) {
 
 func (s *Server) getURLByOriginalURL(original string) (string, error) {
 	logger.Log.Info("Get from db")
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+	ctx := context.Background()
 	originalURL, err := s.storage.GetShortByOriginalURL(ctx, original)
 	if err != nil {
 		return "", err
@@ -535,8 +537,7 @@ func (s *Server) getURLByOriginalURL(original string) (string, error) {
 }
 
 func (s *Server) CreateTable() error {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+	ctx := context.Background()
 	if err := s.storage.CreateTable(ctx); err != nil {
 		return err
 	}
@@ -589,8 +590,7 @@ func (s *Server) New() {
 func (s *Server) deleteUrls() {
 
 	var deleteQueue []string
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+	ctx := context.Background()
 	for {
 		select {
 		case row := <-s.deleteQuereCh:

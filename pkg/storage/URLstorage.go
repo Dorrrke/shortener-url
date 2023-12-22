@@ -20,6 +20,7 @@ type Storage interface {
 	CreateTable(ctx context.Context) error
 	InsertBanchURL(ctx context.Context, value []models.BantchURL) error
 	SetDeleteURLStatus(ctx context.Context, value []string) error
+	ClearTables(ctx context.Context) error
 }
 
 // type URLCreatorGetter interface {
@@ -80,6 +81,10 @@ func (s *MemStorage) InsertBanchURL(ctx context.Context, value []models.BantchUR
 		s.URLMap[v.ShortURL] = v.OriginalURL
 	}
 	return nil
+}
+
+func (s *MemStorage) ClearTables(ctx context.Context) error {
+	return errors.New("DataBase is not init")
 }
 
 type DBStorage struct {
@@ -209,5 +214,20 @@ func (s *DBStorage) SetDeleteURLStatus(ctx context.Context, value []string) erro
 			return err
 		}
 	}
+	return tx.Commit(ctx)
+}
+
+func (s *DBStorage) ClearTables(ctx context.Context) error {
+	tx, err := s.DB.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	_, err = tx.Exec(ctx, `DELETE FROM short_urls`)
+	if err != nil {
+		return errors.Wrap(err, "users table err")
+	}
+
 	return tx.Commit(ctx)
 }
