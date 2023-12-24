@@ -104,3 +104,50 @@ func TestInsertBatchHandler(t *testing.T) {
 	}
 	srv.Close()
 }
+
+func BenchmarkInsertBatchHandler(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+
+		r := chi.NewRouter()
+		var server Server
+
+		r.Route("/", func(r chi.Router) {
+			r.Post("/api/user/urls", server.InsertBatchHandler)
+		})
+
+		srv := httptest.NewServer(r)
+		pool, err := pgxpool.New(context.Background(), db)
+		if err != nil {
+			logger.Log.Error("Error wile init db driver: " + err.Error())
+			panic(err)
+		}
+		server.AddStorage(&storage.DBStorage{DB: pool})
+		if err := server.RestorStorage(); err != nil {
+			logger.Log.Error("Error restor storage: ", zap.Error(err))
+		}
+		err = server.storage.ClearTables(context.Background())
+		if err != nil {
+			log.Println(err.Error())
+		}
+
+		userID := "asgds-ryew24-nbf45"
+
+		token, err := createJWTToken(userID)
+		if err != nil {
+			logger.Log.Info("cannot create token", zap.Error(err))
+		}
+
+		getReq := resty.New().R()
+		getReq.Method = http.MethodPost
+		getReq.URL = srv.URL + "/api/user/urls"
+		getReq.Body = `[{"correlation_id": "dfas1","original_url": "https://music.yandex.ru/home"},{"correlation_id": "asfd2","original_url": "https://www.youtube.com/"},{"correlation_id": "3gda","original_url": "https://github.com/golang/mock"}]`
+		getReq.Cookies = append(getReq.Cookies, &http.Cookie{Name: "auth",
+			Value: token,
+			Path:  "/"})
+		b.StartTimer()
+		_, err = getReq.Send()
+		assert.NoError(b, err, "error making HTTP request")
+		srv.Close()
+	}
+}

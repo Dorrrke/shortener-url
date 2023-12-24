@@ -54,8 +54,7 @@ func (s *Server) GetOriginalURLHandler(res http.ResponseWriter, req *http.Reques
 			shortURL = "http://" + s.ServerConf.ShortURLHostConfig.String() + "/" + URLId
 		}
 		url, deteted, err := s.getURLByShortURL(shortURL)
-		logger.Log.Info("delete status: ", zap.Bool("Delete", deteted))
-		log.Println(deteted)
+
 		if err != nil {
 			logger.Log.Error("Error when read from base: ", zap.Error(err))
 			http.Error(res, "Не корректный запрос", http.StatusBadRequest)
@@ -91,11 +90,11 @@ func (s *Server) ShortenerURLHandler(res http.ResponseWriter, req *http.Request)
 			Value: token,
 			Path:  "/",
 		}
-		log.Printf("new uuid" + userID)
+
 		http.SetCookie(res, &cookie)
 	} else {
 		logger.Log.Info("Cookie true")
-		log.Printf("uuid from cookie: " + userID)
+
 		userID = GetUID(reqCookie.Value)
 		if userID == "" {
 			http.Error(res, "User unauth", http.StatusUnauthorized)
@@ -254,7 +253,7 @@ func (s *Server) GetAllUrls(res http.ResponseWriter, req *http.Request) {
 			Value: token,
 			Path:  "/",
 		}
-		log.Printf("new uuid" + userID)
+
 		http.SetCookie(res, &cookie)
 		http.Error(res, "User unauth", http.StatusUnauthorized)
 		return
@@ -264,7 +263,7 @@ func (s *Server) GetAllUrls(res http.ResponseWriter, req *http.Request) {
 			http.Error(res, "User unauth", http.StatusUnauthorized)
 			return
 		}
-		log.Printf("uuid from cookie: " + userID)
+
 		http.SetCookie(res, reqCookie)
 	}
 	urls, err := s.getAllURLs(userID)
@@ -302,7 +301,7 @@ func (s *Server) InsertBatchHandler(res http.ResponseWriter, req *http.Request) 
 			Value: token,
 			Path:  "/",
 		}
-		log.Printf("new uuid" + userID)
+
 		http.SetCookie(res, &cookie)
 	} else {
 		userID = GetUID(reqCookie.Value)
@@ -310,7 +309,7 @@ func (s *Server) InsertBatchHandler(res http.ResponseWriter, req *http.Request) 
 			http.Error(res, "User unauth", http.StatusUnauthorized)
 			return
 		}
-		log.Printf("uuid from cookie: " + userID)
+
 		http.SetCookie(res, reqCookie)
 	}
 
@@ -319,6 +318,7 @@ func (s *Server) InsertBatchHandler(res http.ResponseWriter, req *http.Request) 
 	if err := dec.Decode(&modelURL); err != nil {
 		logger.Log.Error("cannot decod boby json", zap.Error(err))
 		http.Error(res, "Ошибка при разборе данных", http.StatusInternalServerError)
+		return
 	}
 	if len(modelURL) == 0 {
 		http.Error(res, "Не корректный запрос", http.StatusBadRequest)
@@ -353,6 +353,7 @@ func (s *Server) InsertBatchHandler(res http.ResponseWriter, req *http.Request) 
 	if err := s.SaveURLBatch(bantchValues); err != nil {
 		logger.Log.Error("Error while save batch", zap.Error(err))
 		http.Error(res, "Ошибка при сохарнении данных", http.StatusInternalServerError)
+		return
 	}
 	res.Header().Set("Content-Type", "application/json")
 	res.WriteHeader(http.StatusCreated)
@@ -382,7 +383,7 @@ func (s *Server) DeleteURLHandler(res http.ResponseWriter, req *http.Request) {
 			Value: token,
 			Path:  "/",
 		}
-		log.Printf("new uuid" + userID)
+
 		http.SetCookie(res, &cookie)
 	} else {
 		userID = GetUID(reqCookie.Value)
@@ -390,7 +391,7 @@ func (s *Server) DeleteURLHandler(res http.ResponseWriter, req *http.Request) {
 			http.Error(res, "User unauth", http.StatusUnauthorized)
 			return
 		}
-		log.Printf("uuid from cookie: " + userID)
+
 		http.SetCookie(res, reqCookie)
 	}
 
@@ -579,7 +580,7 @@ func GetUID(tokenString string) string {
 	if !token.Valid {
 		return ""
 	}
-	log.Printf(claim.UserID)
+
 	return claim.UserID
 }
 func (s *Server) New() {
@@ -594,9 +595,11 @@ func (s *Server) deleteUrls() {
 	for {
 		select {
 		case row := <-s.deleteQuereCh:
+			logger.Log.Info("Add url in delete quere", zap.String("url", row))
 			deleteQueue = append(deleteQueue, row)
 		default:
 			if deleteQueue != nil {
+				logger.Log.Info("Set delete status in db", zap.Any("delete quere", deleteQueue))
 				if err := s.storage.SetDeleteURLStatus(ctx, deleteQueue); err != nil {
 					logger.Log.Error("Dlete status", zap.Error(err))
 					continue

@@ -6,12 +6,13 @@ import (
 	"log"
 	"net/http"
 
-	_ "net/http/pprof"
+	"net/http/pprof"
 
 	"github.com/Dorrrke/shortener-url/internal/logger"
 	"github.com/Dorrrke/shortener-url/pkg/server"
 	"github.com/Dorrrke/shortener-url/pkg/storage"
 	"github.com/caarlos0/env/v6"
+	"github.com/go-chi/chi/middleware"
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
@@ -110,18 +111,31 @@ func run(serv server.Server) error {
 	r := chi.NewRouter()
 
 	r.Route("/", func(r chi.Router) {
-		r.Post("/", logger.WithLogging(server.GzipMiddleware(serv.ShortenerURLHandler)))
-		r.Get("/{id}", logger.WithLogging(server.GzipMiddleware(serv.GetOriginalURLHandler)))
+		r.Use(middleware.Compress(5, "gzip"))
+		r.Post("/", logger.WithLogging(serv.ShortenerURLHandler))
+		r.Get("/{id}", logger.WithLogging(serv.GetOriginalURLHandler))
 		r.Route("/api", func(r chi.Router) {
-			r.Get("/user/urls", logger.WithLogging(server.GzipMiddleware(serv.GetAllUrls)))
-			r.Delete("/user/urls", logger.WithLogging(server.GzipMiddleware(serv.DeleteURLHandler)))
+			r.Get("/user/urls", logger.WithLogging(serv.GetAllUrls))
+			r.Delete("/user/urls", logger.WithLogging(serv.DeleteURLHandler))
 			r.Route("/shorten", func(r chi.Router) {
-				r.Post("/", logger.WithLogging(server.GzipMiddleware(serv.ShortenerJSONURLHandler)))
-				r.Post("/batch", logger.WithLogging(server.GzipMiddleware(serv.InsertBatchHandler)))
+				r.Post("/", logger.WithLogging(serv.ShortenerJSONURLHandler))
+				r.Post("/batch", logger.WithLogging(serv.InsertBatchHandler))
 			})
 		})
-		r.Get("/ping", logger.WithLogging(server.GzipMiddleware(serv.CheckDBConnectionHandler)))
+		r.Get("/ping", logger.WithLogging(serv.CheckDBConnectionHandler))
 	})
+	r.HandleFunc("/debug/pprof", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, r.URL.Path[1:])
+	})
+
+	// Регистрация обработчиков pprof для различных типов профилирования
+	r.HandleFunc("/debug/pprof/heap", pprof.Index)
+	r.HandleFunc("/debug/pprof/goroutine", pprof.Index)
+	r.HandleFunc("/debug/pprof/block", pprof.Index)
+	r.HandleFunc("/debug/pprof/threadcreate", pprof.Index)
+	r.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+	r.HandleFunc("/debug/pprof/profile", pprof.Profile)
+	r.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
 
 	if serv.ServerConf.HostConfig.Host == "" {
 		return http.ListenAndServe(":8080", r)

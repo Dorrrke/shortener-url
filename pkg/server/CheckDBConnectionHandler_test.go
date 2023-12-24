@@ -84,3 +84,34 @@ func TestCheckDBConnectionHandler(t *testing.T) {
 	}
 	srv.Close()
 }
+
+func BenchmarkCheckDBConnectionHandler(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+		r := chi.NewRouter()
+		var server Server
+
+		r.Route("/", func(r chi.Router) {
+			r.Get("/ping", server.CheckDBConnectionHandler)
+		})
+
+		srv := httptest.NewServer(r)
+		ctrl := gomock.NewController(b)
+		defer ctrl.Finish()
+
+		m := mock_storage.NewMockStorage(ctrl)
+
+		m.EXPECT().CheckDBConnect(context.Background()).Return(nil)
+
+		server.AddStorage(m)
+		getReq := resty.New().R()
+		getReq.Method = http.MethodGet
+		getReq.URL = srv.URL + "/ping"
+		b.StartTimer()
+
+		_, err := getReq.Send()
+		assert.NoError(b, err, "error making HTTP request")
+		srv.Close()
+	}
+
+}

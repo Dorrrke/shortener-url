@@ -129,3 +129,55 @@ func TestGetAllUrls(t *testing.T) {
 	}
 	srv.Close()
 }
+
+func BenchmarkGetAllUrls(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+		r := chi.NewRouter()
+		var server Server
+
+		r.Route("/", func(r chi.Router) {
+			r.Get("/api/user/urls", server.GetAllUrls)
+		})
+
+		srv := httptest.NewServer(r)
+		ctrl := gomock.NewController(b)
+		defer ctrl.Finish()
+
+		m := mock_storage.NewMockStorage(ctrl)
+		userID := "asgds-ryew24-nbf45"
+		value := []models.URLModel{
+			{
+				ShortID:    "http://aaa",
+				OriginalID: "http://afdsafasdfadf",
+			},
+			{
+				ShortID:    "http://bbb",
+				OriginalID: "http://adfbvdshfdha",
+			},
+			{
+				ShortID:    "http://ccc",
+				OriginalID: "http://trytrukjtyj",
+			},
+		}
+
+		m.EXPECT().GetAllUrls(context.Background(), userID).Return(value, nil)
+
+		token, err := createJWTToken(userID)
+		if err != nil {
+			logger.Log.Info("cannot create token", zap.Error(err))
+		}
+
+		server.AddStorage(m)
+		getReq := resty.New().R()
+		getReq.Method = http.MethodGet
+		getReq.URL = srv.URL + "/api/user/urls"
+		getReq.Cookies = append(getReq.Cookies, &http.Cookie{Name: "auth",
+			Value: token,
+			Path:  "/"})
+		b.StartTimer()
+		_, err = getReq.Send()
+		assert.NoError(b, err, "error making HTTP request")
+		srv.Close()
+	}
+}

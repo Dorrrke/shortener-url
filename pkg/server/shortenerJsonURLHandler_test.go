@@ -89,3 +89,17 @@ func TestShortenerJsonURLHandler(t *testing.T) {
 		})
 	}
 }
+
+func BenchmarkShortenerJsonURLHandler(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+		var URLServer Server
+		URLServer.AddStorage(&storage.MemStorage{URLMap: make(map[string]string)})
+
+		body := strings.NewReader(`{"url":"https://www.youtube.com/"}`)
+		request := httptest.NewRequest(http.MethodPost, "/api/shorten", body)
+		w := httptest.NewRecorder()
+		b.StartTimer()
+		URLServer.ShortenerJSONURLHandler(w, request)
+	}
+}

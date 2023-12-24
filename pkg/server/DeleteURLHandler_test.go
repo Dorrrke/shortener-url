@@ -115,3 +115,41 @@ func TestDeleteURLHandler(t *testing.T) {
 
 	srv.Close()
 }
+
+func BenchmarkDeleteURLHandler(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		r := chi.NewRouter()
+		var server Server
+
+		r.Route("/", func(r chi.Router) {
+			r.Delete("/api/user/urls", server.DeleteURLHandler)
+			r.Get("/{id}", server.GetOriginalURLHandler)
+		})
+
+		srv := httptest.NewServer(r)
+		b.StopTimer()
+		ctrl := gomock.NewController(b)
+		defer ctrl.Finish()
+
+		m := mock_storage.NewMockStorage(ctrl)
+		userID := "asgds-ryew24-nbf45"
+
+		token, err := createJWTToken(userID)
+		if err != nil {
+			logger.Log.Info("cannot create token", zap.Error(err))
+		}
+
+		server.AddStorage(m)
+		getReq := resty.New().R()
+		getReq.Method = http.MethodDelete
+		getReq.URL = srv.URL + "/api/user/urls"
+		getReq.Cookies = append(getReq.Cookies, &http.Cookie{Name: "auth",
+			Value: token,
+			Path:  "/"})
+		b.StartTimer()
+		_, err = getReq.Send()
+
+		assert.NoError(b, err, "error making HTTP request")
+		srv.Close()
+	}
+}
