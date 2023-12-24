@@ -8,9 +8,11 @@ import (
 	"testing"
 
 	"github.com/Dorrrke/shortener-url/internal/logger"
+	mock_storage "github.com/Dorrrke/shortener-url/mocks"
 	"github.com/Dorrrke/shortener-url/pkg/storage"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-resty/resty/v2"
+	"github.com/golang/mock/gomock"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
@@ -28,19 +30,6 @@ func TestInsertBatchHandler(t *testing.T) {
 	})
 
 	srv := httptest.NewServer(r)
-	pool, err := pgxpool.New(context.Background(), db)
-	if err != nil {
-		logger.Log.Error("Error wile init db driver: " + err.Error())
-		panic(err)
-	}
-	server.AddStorage(&storage.DBStorage{DB: pool})
-	if err := server.RestorStorage(); err != nil {
-		logger.Log.Error("Error restor storage: ", zap.Error(err))
-	}
-	err = server.storage.ClearTables(context.Background())
-	if err != nil {
-		log.Println(err.Error())
-	}
 
 	type want struct {
 		code        int
@@ -53,6 +42,7 @@ func TestInsertBatchHandler(t *testing.T) {
 		request string
 		method  string
 		value   string
+		dbCall  bool
 		want    want
 	}{
 		{
@@ -61,17 +51,19 @@ func TestInsertBatchHandler(t *testing.T) {
 			request: "/api/user/urls",
 			method:  http.MethodPost,
 			value:   `[{"correlation_id": "dfas1","original_url": "https://music.yandex.ru/home"},{"correlation_id": "asfd2","original_url": "https://www.youtube.com/"},{"correlation_id": "3gda","original_url": "https://github.com/golang/mock"}]`,
+			dbCall:  true,
 			want: want{
 				code:        http.StatusCreated,
 				contentType: "application/json",
 			},
 		},
 		{
-			name:    "Test get all urls #2 Without userID",
+			name:    "Test insert batch urls #2 Without userID",
 			userID:  "",
 			request: "/api/user/urls",
 			method:  http.MethodPost,
 			value:   `[{"correlation_id": "dfs1","original_url": "https://music.yandex.ru/home"},{"correlation_id": "fd1","original_url": "https://www.youtube.com/"},{"correlation_id": "fd3","original_url": "https://github.com/golang/mock"}]`,
+			dbCall:  false,
 			want: want{
 				code:        http.StatusUnauthorized,
 				contentType: "text/plain; charset=utf-8",
@@ -83,10 +75,19 @@ func TestInsertBatchHandler(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			userID := tt.userID
 
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			m := mock_storage.NewMockStorage(ctrl)
+			if tt.dbCall {
+				m.EXPECT().InsertBanchURL(context.Background(), gomock.All()).Return(nil)
+			}
 			token, err := createJWTToken(userID)
 			if err != nil {
 				logger.Log.Info("cannot create token", zap.Error(err))
 			}
+
+			server.AddStorage(m)
 
 			getReq := resty.New().R()
 			getReq.Method = tt.method
