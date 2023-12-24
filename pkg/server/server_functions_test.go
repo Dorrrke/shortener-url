@@ -10,7 +10,7 @@ import (
 
 func TestGetUID(t *testing.T) {
 	type want struct {
-		UserId string
+		UserID string
 	}
 
 	tests := []struct {
@@ -22,21 +22,21 @@ func TestGetUID(t *testing.T) {
 			name: "Test get id from jwt #1",
 			UID:  "dafsgfdas-gadsfga-fdsf",
 			want: want{
-				UserId: "dafsgfdas-gadsfga-fdsf",
+				UserID: "dafsgfdas-gadsfga-fdsf",
 			},
 		},
 		{
 			name: "Test get id from jwt #2",
 			UID:  "fdsh-gfsdfg-hgfh",
 			want: want{
-				UserId: "fdsh-gfsdfg-hgfh",
+				UserID: "fdsh-gfsdfg-hgfh",
 			},
 		},
 		{
 			name: "Test get id from jwt #3",
 			UID:  "262453g-fsdh545-gh63",
 			want: want{
-				UserId: "262453g-fsdh545-gh63",
+				UserID: "262453g-fsdh545-gh63",
 			},
 		},
 	}
@@ -49,7 +49,7 @@ func TestGetUID(t *testing.T) {
 				logger.Log.Info("cannot create token", zap.Error(err))
 			}
 			getedUID := GetUID(token)
-			assert.Equal(t, tt.want.UserId, getedUID)
+			assert.Equal(t, tt.want.UserID, getedUID)
 		})
 
 	}
