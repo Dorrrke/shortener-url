@@ -149,6 +149,8 @@ func (s *DBStorage) GetShortByOriginalURL(ctx context.Context, original string) 
 
 	return strings.TrimSpace(result), nil
 }
+
+// Метод для проверки подключения к базе данных.
 func (s *DBStorage) CheckDBConnect(ctx context.Context) error {
 	if err := s.DB.Ping(ctx); err != nil {
 		return errors.Wrap(err, "Error while checking connection")
