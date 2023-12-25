@@ -1,3 +1,4 @@
+// Пакет server содержит в себе основную логику работы hendler-ов свервиса, а так же промежуточные функции для общения со storage.
 package server
 
 import (
@@ -25,8 +26,10 @@ import (
 	"go.uber.org/zap"
 )
 
+// Секретный ключ для создания JWT токена.
 const SecretKey = "Secret123Key345Super"
 
+// Структура сервера, с данными о хранилище, конфиге, логгере и каналом для удаления url.
 type Server struct {
 	storage       storage.Storage
 	ServerConf    config.Config
@@ -34,16 +37,21 @@ type Server struct {
 	deleteQuereCh chan string
 }
 
+// Структура используемая для воостановления хранилища из json файла.
 type restorURL struct {
 	ShortURL    string `json:"short_url"`
 	OriginalURL string `json:"original_url"`
 }
 
+// Структура Claims используется для созадния JWT Token.
 type Claims struct {
 	jwt.RegisteredClaims
 	UserID string
 }
 
+// GetOriginalURLHandler - хендлер для перехода на оригинальный адресс по сокращенной ссылке.
+// В качестве ответа, хендлер находит в хранилище оригинальый url соответсвующий полученному сокращенному url и возвращает его в теле ответа с статус кодом 307 (StatusTemporaryRedirect).
+// В том случае, если адрес удален, возвращается ошибка с кодм 410 (StatusGone).
 func (s *Server) GetOriginalURLHandler(res http.ResponseWriter, req *http.Request) {
 	URLId := chi.URLParam(req, "id")
 	if URLId != "" {
@@ -74,6 +82,13 @@ func (s *Server) GetOriginalURLHandler(res http.ResponseWriter, req *http.Reques
 	http.Error(res, "Не корректный запрос", http.StatusBadRequest)
 }
 
+// ShortenerURLHandler - хендлер для сокращения url.
+// Хендлер получает в теле запроса url аддрес, создает случайню строку посредствам пакета uuid.
+//
+//	urlID := strings.Split(uuid.New().String(), "-")[0]
+//
+// После чего сохраняет полученный адррес в базу данных и возварщает его в теле ответа пользователю со статусом 210 (StatusCreated).
+// В том случае если аддрес уже сохраняли, хендлер вернет сокращенный url со статусом 409 (StatusConflict).
 func (s *Server) ShortenerURLHandler(res http.ResponseWriter, req *http.Request) {
 
 	var userID string
@@ -148,6 +163,13 @@ func (s *Server) ShortenerURLHandler(res http.ResponseWriter, req *http.Request)
 
 }
 
+// ShortenerJSONURLHandler - работатет аналогично ShortenerURLHandler только в теле запроса получает url в формате json.
+// Хендлер получает в теле запроса url аддрес в формате json, десириализует полученную строку и создает случайню строку посредствам пакета uuid.
+//
+//	urlID := strings.Split(uuid.New().String(), "-")[0]
+//
+// После чего сохраняет полученный адррес в базу данных и возварщает его в теле ответа пользователю со статусом 210 (StatusCreated).
+// В том случае если аддрес уже сохраняли, хендлер вернет сокращенный url со статусом 409 (StatusConflict).
 func (s *Server) ShortenerJSONURLHandler(res http.ResponseWriter, req *http.Request) {
 
 	var userID string
@@ -229,6 +251,9 @@ func (s *Server) ShortenerJSONURLHandler(res http.ResponseWriter, req *http.Requ
 
 }
 
+// CheckDBConnectionHandler - хендлер для проверки подключения к базе данных.
+// Если подключение есть, веренет статус код 200 (StatusOK).
+// В случае если подключния нет, вернет статус код 500 (StatusInternalServerError).
 func (s *Server) CheckDBConnectionHandler(res http.ResponseWriter, req *http.Request) {
 	ctx := context.Background()
 	if err := s.storage.CheckDBConnect(ctx); err != nil {
@@ -239,6 +264,10 @@ func (s *Server) CheckDBConnectionHandler(res http.ResponseWriter, req *http.Req
 	res.WriteHeader(http.StatusOK)
 }
 
+// GetAllUrls - хендлер для получения всех сокращенных пользователем url.
+// Сервис проверяет id пользователся из jwt токена хранящегося в cookie, если такого пользователя нет или id путое возвращает ошибку со статусом 401 (StatusUnauthorized).
+// В случае если id существует, вернет все сокращенные пользователем url в формате json.
+// Если пользователь не сократил ни одного url вернет ошибку со статусом 204 (StatusNoContent).
 func (s *Server) GetAllUrls(res http.ResponseWriter, req *http.Request) {
 	var userID string
 	reqCookie, err := req.Cookie("auth")
@@ -285,6 +314,9 @@ func (s *Server) GetAllUrls(res http.ResponseWriter, req *http.Request) {
 
 }
 
+// InsertBatchHandler - хендлер для сохранения нескольок url за раз.
+// Сервис проверяет id пользователся из jwt токена хранящегося в cookie, если такого пользователя нет или id путое возвращает ошибку со статусом 401 (StatusUnauthorized).
+// В случае если id существует, десериализует данные из json, сокращает все адреса, сохраняет их в бд и возвращает пользователю список новых сокращенных адресов.
 func (s *Server) InsertBatchHandler(res http.ResponseWriter, req *http.Request) {
 	var userID string
 	reqCookie, err := req.Cookie("auth")
@@ -367,6 +399,10 @@ func (s *Server) InsertBatchHandler(res http.ResponseWriter, req *http.Request) 
 	}
 }
 
+// DeleteURLHandler - хендлер для удаления url.
+// Сервис проверяет id пользователся из jwt токена хранящегося в cookie, если такого пользователя нет или id путое возвращает ошибку со статусом 401 (StatusUnauthorized).
+// В случае если id существует, десериализует данные из json и отправляет их в канал для удаления, после чего, не дожидаясь окончания удаления возвращает статус 202 (StatusAccepted).
+// Процесс удаления происходит в другом потоке, что бы не тормозить работу сервиса.
 func (s *Server) DeleteURLHandler(res http.ResponseWriter, req *http.Request) {
 	var userID string
 	reqCookie, err := req.Cookie("auth")
@@ -414,18 +450,22 @@ func (s *Server) DeleteURLHandler(res http.ResponseWriter, req *http.Request) {
 	res.WriteHeader(http.StatusAccepted)
 }
 
+// Функция для установки хранилища сервера.
 func (s *Server) AddStorage(stor storage.Storage) {
 	s.storage = stor
 }
 
+// Функция для установки пути к файлу сохранинеия url.
 func (s *Server) AddFilePath(fileName string) {
 	s.filePath = fileName
 }
 
+// Функция для получения пути к файлу сохранинеия url.
 func (s *Server) GetFilePath() string {
 	return s.filePath
 }
 
+// Функция для восстановления харнилища после перезапуска сервиса.
 func (s *Server) RestorStorage() error {
 	if err := s.CreateTable(); err != nil {
 		logger.Log.Info("Error when create table: " + err.Error())
@@ -490,6 +530,8 @@ func (s *Server) saveURL(original string, short string, userID string) error {
 	return nil
 }
 
+// Функция связка между сервером и хранилищем.
+// В функции создатся контекст, после чего делается запрос на сохранения батча адресов в хранилище.
 func (s *Server) SaveURLBatch(batch []models.BantchURL) error {
 	ctx := context.Background()
 	if err := s.storage.InsertBanchURL(ctx, batch); err != nil {
@@ -507,6 +549,8 @@ func (s *Server) SaveURLBatch(batch []models.BantchURL) error {
 	return nil
 }
 
+// Функция связка между сервером и хранилищем.
+// В функции создатся контекст, после чего делается запрос на получение оригинального аддреса по сокращенному из хранилища.
 func (s *Server) getURLByShortURL(short string) (string, bool, error) {
 	logger.Log.Info("Get from db")
 	ctx := context.Background()
@@ -518,6 +562,8 @@ func (s *Server) getURLByShortURL(short string) (string, bool, error) {
 	return originalURL, deleted, nil
 }
 
+// Функция связка между сервером и хранилищем.
+// В функции создатся контекст, после чего делается запрос на получение сокращенных пользователем аддресов из хранилища.
 func (s *Server) getAllURLs(userID string) ([]models.URLModel, error) {
 	ctx := context.Background()
 	userURL, err := s.storage.GetAllUrls(ctx, userID)
@@ -527,6 +573,8 @@ func (s *Server) getAllURLs(userID string) ([]models.URLModel, error) {
 	return userURL, nil
 }
 
+// Функция связка между сервером и хранилищем.
+// В функции создатся контекст, после чего делается запрос на получение сокращенного аддреса по оригинальному из хранилища.
 func (s *Server) getURLByOriginalURL(original string) (string, error) {
 	logger.Log.Info("Get from db")
 	ctx := context.Background()
@@ -537,6 +585,8 @@ func (s *Server) getURLByOriginalURL(original string) (string, error) {
 	return originalURL, nil
 }
 
+// Функция создания таблиц в базе данных.
+// Функция запускается при успещном подключении к базе данных.
 func (s *Server) CreateTable() error {
 	ctx := context.Background()
 	if err := s.storage.CreateTable(ctx); err != nil {
@@ -545,6 +595,7 @@ func (s *Server) CreateTable() error {
 	return nil
 }
 
+// Метод валидации адреса.
 func validationURL(URL string) bool {
 	if strings.HasPrefix(URL, "http://") || strings.HasPrefix(URL, "https://") {
 		return true
@@ -552,6 +603,7 @@ func validationURL(URL string) bool {
 	return false
 }
 
+// Функция создания JWT token.
 func createJWTToken(uuid string) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, Claims{
 		RegisteredClaims: jwt.RegisteredClaims{
@@ -567,6 +619,7 @@ func createJWTToken(uuid string) (string, error) {
 	return tokenString, nil
 }
 
+// Функция получения id пользвателя из jwt токена.
 func GetUID(tokenString string) string {
 	claim := &Claims{}
 
@@ -583,11 +636,14 @@ func GetUID(tokenString string) string {
 
 	return claim.UserID
 }
+
+// Функция создания экземпляра типа Server.
 func (s *Server) New() {
 	s.deleteQuereCh = make(chan string, 5)
 	go s.deleteUrls()
 }
 
+// Функция запускаемая во вторичном потоке во время созадния сервера для фонового удаления url.
 func (s *Server) deleteUrls() {
 
 	var deleteQueue []string

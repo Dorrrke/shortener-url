@@ -1,3 +1,4 @@
+// Пакет config - пакет хранящий в себе информацию для конфигурации сервера.
 package config
 
 import (
@@ -7,15 +8,21 @@ import (
 	"strings"
 )
 
+// Структура конфига с информацией об адрессе сервера.
 type ConfigServer struct {
+	// Адрес сервера.
 	Host string
+	// Порт сервера.
 	Port int
 }
 
+// Метод возвращающий строку адреса типом host + port.
 func (config ConfigServer) String() string {
 	return config.Host + ":" + strconv.Itoa(config.Port)
 }
 
+// Метод установки значения в переменную типа ConfigServer.
+// На вход поступает строка с адресом, после чего она разделяется на адрес и порт и значения устанавливаются в соответсвующий поля.
 func (config *ConfigServer) Set(s string) error {
 
 	matched, err := regexp.MatchString(`^[-a-zA-Z0-9+&@#/%?=~_|!:,.;]*[-a-zA-Z0-9+&@#/%=~_|]`, s)
@@ -54,15 +61,21 @@ func (config *ConfigServer) Set(s string) error {
 	}
 }
 
+// Структура конфига с информацией об базовом адресе сокращенных url.
 type ConfigShortURL struct {
+	// Адрес сервера.
 	Host string
+	// Порт сервера.
 	Port int
 }
 
+// Метод возвращающий строку адреса типом host + port.
 func (config ConfigShortURL) String() string {
 	return config.Host + ":" + strconv.Itoa(config.Port)
 }
 
+// Метод установки значения в переменную типа ConfigShortURL.
+// На вход поступает строка с адресом, после чего она разделяется на адрес и порт и значения устанавливаются в соответсвующий поля.
 func (config *ConfigShortURL) Set(s string) error {
 	matched, err := regexp.MatchString(`^[-a-zA-Z0-9+&@#/%?=~_|!:,.;]*[-a-zA-Z0-9+&@#/%=~_|]`, s)
 	if err != nil {
@@ -100,7 +113,10 @@ func (config *ConfigShortURL) Set(s string) error {
 	}
 }
 
+// Структура хранящаяя в себе две config структуры для конфигурации сервера.
 type Config struct {
-	HostConfig         ConfigServer
+	// Структура конфига с информацией об адрессе сервера.
+	HostConfig ConfigServer
+	// Структура конфига с информацией об базоыом адрессе сокращенных url.
 	ShortURLHostConfig ConfigShortURL
 }
