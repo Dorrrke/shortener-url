@@ -1,3 +1,4 @@
+// Пакет logger содержит в себе синголтон логгера zap и реализацию mw с логгированием.
 package logger
 
 import (
@@ -7,10 +8,10 @@ import (
 	"go.uber.org/zap"
 )
 
-// Singletone логгера.
+// Log - Singletone логгера.
 var Log *zap.Logger = zap.NewNop()
 
-// Функция инициализации zap.Logger.
+// Initialize - функция инициализации zap.Logger.
 func Initialize(level string) error {
 	lvl, err := zap.ParseAtomicLevel(level)
 	if err != nil {
@@ -55,7 +56,7 @@ func (r *loggingResponseWriter) WriteHeader(statusCode int) {
 	r.responceData.status = statusCode
 }
 
-// Middleware для логгирвоания запростов к серверу.
+// WithLogging - middleware для логгирвоания запростов к серверу.
 func WithLogging(h http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()

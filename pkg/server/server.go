@@ -26,10 +26,10 @@ import (
 	"go.uber.org/zap"
 )
 
-// Секретный ключ для создания JWT токена.
+// SecretKey - Секретный ключ для создания JWT токена.
 const SecretKey = "Secret123Key345Super"
 
-// Структура сервера, с данными о хранилище, конфиге, логгере и каналом для удаления url.
+// структура сервера, с данными о хранилище, конфиге, логгере и каналом для удаления url.
 type Server struct {
 	storage       storage.Storage
 	ServerConf    config.Config
@@ -37,13 +37,13 @@ type Server struct {
 	deleteQuereCh chan string
 }
 
-// Структура используемая для воостановления хранилища из json файла.
+// restorURL - структура используемая для воостановления хранилища из json файла.
 type restorURL struct {
 	ShortURL    string `json:"short_url"`
 	OriginalURL string `json:"original_url"`
 }
 
-// Структура Claims используется для созадния JWT Token.
+// структура Claims используется для созадния JWT Token.
 type Claims struct {
 	jwt.RegisteredClaims
 	UserID string
@@ -450,22 +450,22 @@ func (s *Server) DeleteURLHandler(res http.ResponseWriter, req *http.Request) {
 	res.WriteHeader(http.StatusAccepted)
 }
 
-// Функция для установки хранилища сервера.
+// AddStorage - функция для установки хранилища сервера.
 func (s *Server) AddStorage(stor storage.Storage) {
 	s.storage = stor
 }
 
-// Функция для установки пути к файлу сохранинеия url.
+// AddFilePath - функция для установки пути к файлу сохранинеия url.
 func (s *Server) AddFilePath(fileName string) {
 	s.filePath = fileName
 }
 
-// Функция для получения пути к файлу сохранинеия url.
+// GetFilePath - функция для получения пути к файлу сохранинеия url.
 func (s *Server) GetFilePath() string {
 	return s.filePath
 }
 
-// Функция для восстановления харнилища после перезапуска сервиса.
+// RestorStorage - функция для восстановления харнилища после перезапуска сервиса.
 func (s *Server) RestorStorage() error {
 	if err := s.CreateTable(); err != nil {
 		logger.Log.Info("Error when create table: " + err.Error())
@@ -530,7 +530,7 @@ func (s *Server) saveURL(original string, short string, userID string) error {
 	return nil
 }
 
-// Функция связка между сервером и хранилищем.
+// SaveURLBatch - функция связка между сервером и хранилищем.
 // В функции создатся контекст, после чего делается запрос на сохранения батча адресов в хранилище.
 func (s *Server) SaveURLBatch(batch []models.BantchURL) error {
 	ctx := context.Background()
@@ -549,7 +549,7 @@ func (s *Server) SaveURLBatch(batch []models.BantchURL) error {
 	return nil
 }
 
-// Функция связка между сервером и хранилищем.
+// getURLByShortURL - функция связка между сервером и хранилищем.
 // В функции создатся контекст, после чего делается запрос на получение оригинального аддреса по сокращенному из хранилища.
 func (s *Server) getURLByShortURL(short string) (string, bool, error) {
 	logger.Log.Info("Get from db")
@@ -562,7 +562,7 @@ func (s *Server) getURLByShortURL(short string) (string, bool, error) {
 	return originalURL, deleted, nil
 }
 
-// Функция связка между сервером и хранилищем.
+// getAllURLs - функция связка между сервером и хранилищем.
 // В функции создатся контекст, после чего делается запрос на получение сокращенных пользователем аддресов из хранилища.
 func (s *Server) getAllURLs(userID string) ([]models.URLModel, error) {
 	ctx := context.Background()
@@ -573,7 +573,7 @@ func (s *Server) getAllURLs(userID string) ([]models.URLModel, error) {
 	return userURL, nil
 }
 
-// Функция связка между сервером и хранилищем.
+// getURLByOriginalURL - функция связка между сервером и хранилищем.
 // В функции создатся контекст, после чего делается запрос на получение сокращенного аддреса по оригинальному из хранилища.
 func (s *Server) getURLByOriginalURL(original string) (string, error) {
 	logger.Log.Info("Get from db")
@@ -585,7 +585,7 @@ func (s *Server) getURLByOriginalURL(original string) (string, error) {
 	return originalURL, nil
 }
 
-// Функция создания таблиц в базе данных.
+// CreateTable - функция создания таблиц в базе данных.
 // Функция запускается при успещном подключении к базе данных.
 func (s *Server) CreateTable() error {
 	ctx := context.Background()
@@ -595,7 +595,7 @@ func (s *Server) CreateTable() error {
 	return nil
 }
 
-// Метод валидации адреса.
+// validationURL - метод валидации адреса.
 func validationURL(URL string) bool {
 	if strings.HasPrefix(URL, "http://") || strings.HasPrefix(URL, "https://") {
 		return true
@@ -603,7 +603,7 @@ func validationURL(URL string) bool {
 	return false
 }
 
-// Функция создания JWT token.
+// createJWTToken - функция создания JWT token.
 func createJWTToken(uuid string) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, Claims{
 		RegisteredClaims: jwt.RegisteredClaims{
@@ -619,7 +619,7 @@ func createJWTToken(uuid string) (string, error) {
 	return tokenString, nil
 }
 
-// Функция получения id пользвателя из jwt токена.
+// GetUID - функция получения id пользвателя из jwt токена.
 func GetUID(tokenString string) string {
 	claim := &Claims{}
 
@@ -637,13 +637,13 @@ func GetUID(tokenString string) string {
 	return claim.UserID
 }
 
-// Функция создания экземпляра типа Server.
+// New - функция создания экземпляра типа Server.
 func (s *Server) New() {
 	s.deleteQuereCh = make(chan string, 5)
 	go s.deleteUrls()
 }
 
-// Функция запускаемая во вторичном потоке во время созадния сервера для фонового удаления url.
+// deleteUrls - функция запускаемая во вторичном потоке во время созадния сервера для фонового удаления url.
 func (s *Server) deleteUrls() {
 
 	var deleteQueue []string

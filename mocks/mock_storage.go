@@ -49,18 +49,18 @@ func (mr *MockStorageMockRecorder) CheckDBConnect(arg0 interface{}) *gomock.Call
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CheckDBConnect", reflect.TypeOf((*MockStorage)(nil).CheckDBConnect), arg0)
 }
 
-// ClearTables mocks base method.
-func (m *MockStorage) ClearTables(arg0 context.Context) error {
+// Clear mocks base method.
+func (m *MockStorage) Clear(arg0 context.Context) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ClearTables", arg0)
+	ret := m.ctrl.Call(m, "Clear", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// ClearTables indicates an expected call of ClearTables.
-func (mr *MockStorageMockRecorder) ClearTables(arg0 interface{}) *gomock.Call {
+// Clear indicates an expected call of Clear.
+func (mr *MockStorageMockRecorder) Clear(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ClearTables", reflect.TypeOf((*MockStorage)(nil).ClearTables), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Clear", reflect.TypeOf((*MockStorage)(nil).Clear), arg0)
 }
 
 // CreateTable mocks base method.

@@ -127,7 +127,7 @@ func BenchmarkInsertBatchHandler(b *testing.B) {
 		if err := server.RestorStorage(); err != nil {
 			logger.Log.Error("Error restor storage: ", zap.Error(err))
 		}
-		err = server.storage.ClearTables(context.Background())
+		err = server.storage.Clear(context.Background())
 		if err != nil {
 			log.Println(err.Error())
 		}
