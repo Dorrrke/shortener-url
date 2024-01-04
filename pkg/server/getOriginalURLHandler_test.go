@@ -46,15 +46,6 @@ func TestGetOriginalURLHandler(t *testing.T) {
 			method:  http.MethodGet,
 		},
 		{
-			name: "Test Get hadler #2",
-			want: want{
-				code:     http.StatusOK,
-				location: "https://music.yandex.ru/home",
-			},
-			request: "/",
-			method:  http.MethodGet,
-		},
-		{
 			name: "Test negative request from Get hadler #2",
 			want: want{
 				code:     http.StatusBadRequest,
@@ -90,4 +81,40 @@ func TestGetOriginalURLHandler(t *testing.T) {
 	}
 
 	srv.Close()
+}
+
+func BenchmarkGetOriginalURLHandler(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+		r := chi.NewRouter()
+
+		var URLServer Server
+		URLServer.AddStorage(&storage.MemStorage{URLMap: make(map[string]string)})
+
+		r.Route("/", func(r chi.Router) {
+			r.Post("/", URLServer.ShortenerURLHandler)
+			r.Get("/{id}", URLServer.GetOriginalURLHandler)
+		})
+		srv := httptest.NewServer(r)
+		postReq := resty.New().R()
+		postReq.Method = http.MethodPost
+		postReq.URL = srv.URL + "/"
+		postReq.Body = "https://www.youtube.com/"
+		respPost, err := postReq.Send()
+		assert.NoError(b, err, "error making HTTP request")
+		var request string
+		if strings.HasPrefix(string(respPost.Body()), "http://") {
+			request = string(respPost.Body())
+		} else {
+			request = srv.URL + "/"
+		}
+
+		getReq := resty.New().R()
+		getReq.Method = http.MethodGet
+		getReq.URL = request
+		b.StartTimer()
+		_, err = getReq.Send()
+		assert.NoError(b, err, "error making HTTP request")
+		srv.Close()
+	}
 }

@@ -1,3 +1,4 @@
+// В пакете storage харнится интерфейс хранилища (Storage) и две реализации интерфейса.
 package storage
 
 import (
@@ -11,6 +12,7 @@ import (
 	"go.uber.org/zap"
 )
 
+// Storage - итерфейс хранилища с необходимыми методами.
 type Storage interface {
 	InsertURL(ctx context.Context, originalURL string, shortURL string, userID string) error
 	GetAllUrls(ctx context.Context, userID string) ([]models.URLModel, error)
@@ -20,18 +22,15 @@ type Storage interface {
 	CreateTable(ctx context.Context) error
 	InsertBanchURL(ctx context.Context, value []models.BantchURL) error
 	SetDeleteURLStatus(ctx context.Context, value []string) error
+	Clear(ctx context.Context) error
 }
 
-// type URLCreatorGetter interface {
-// 	CreateURL(URLId string, origURL string)
-// 	GetOrigURL(URLId string) string
-// 	CheckMapKey(URLId string) bool
-// }
-
+// MemStorage - реализация интерфейса Storage без базы данных, при помощи map - MemStorage
 type MemStorage struct {
 	URLMap map[string]string
 }
 
+// InsertURL - метод сохранения url в map.
 func (s *MemStorage) InsertURL(ctx context.Context, originalURL string, shortURL string, userID string) error {
 	if s.URLMap == nil {
 		return errors.New("Map is not init")
@@ -40,12 +39,15 @@ func (s *MemStorage) InsertURL(ctx context.Context, originalURL string, shortURL
 	return nil
 }
 
+// GetOriginalURLByShort - метод получения оригинального url из map по сокращенному url.
 func (s *MemStorage) GetOriginalURLByShort(ctx context.Context, shotURL string) (string, bool, error) {
 	if len(s.URLMap) == 0 {
 		return "", false, errors.New("Mem Storage is empty")
 	}
 	return s.URLMap[shotURL], false, nil
 }
+
+// GetShortByOriginalURL - метод получения сокращенного url из map по оригинальному url.
 func (s *MemStorage) GetShortByOriginalURL(ctx context.Context, original string) (string, error) {
 	var key string
 	for k, v := range s.URLMap {
@@ -58,20 +60,32 @@ func (s *MemStorage) GetShortByOriginalURL(ctx context.Context, original string)
 	}
 	return key, nil
 }
+
+// CheckDBConnect - метод проверки подключения к базе данных.
+// Так как это MemStorage возвращает ошибку, что бд не подключена.
 func (s *MemStorage) CheckDBConnect(ctx context.Context) error {
 	return errors.New("DataBase is not init")
 }
+
+// CreateTable - метод создания таблицы в базе данных.
+// Так как это MemStorage возвращает ошибку, что бд не подключена.
 func (s *MemStorage) CreateTable(ctx context.Context) error {
 	return errors.New("DataBase is not init")
 }
 
+// SetDeleteURLStatus - метод установки статуса Delete в базе данных.
+// Так как это MemStorage возвращает ошибку, что бд не подключена.
 func (s *MemStorage) SetDeleteURLStatus(ctx context.Context, value []string) error {
 	return errors.New("DataBase is not init")
 }
 
+// GetAllUrls - метод получения всех сокращенных url пользвателя из бд.
+// Так как это MemStorage возвращает ошибку, что бд не подключена.
 func (s *MemStorage) GetAllUrls(ctx context.Context, userID string) ([]models.URLModel, error) {
 	return nil, errors.New("DataBase is not init")
 }
+
+// InsertBanchURL - метод сохраниения нескольких url в map.
 func (s *MemStorage) InsertBanchURL(ctx context.Context, value []models.BantchURL) error {
 	if len(s.URLMap) == 0 {
 		return errors.New("Mem Storage is empty")
@@ -82,10 +96,20 @@ func (s *MemStorage) InsertBanchURL(ctx context.Context, value []models.BantchUR
 	return nil
 }
 
+// Clear - метод очистки всех таблиц в бд.
+// Так как это MemStorage возвращает ошибку, что бд не подключена.
+func (s *MemStorage) Clear(ctx context.Context) error {
+	return errors.New("DataBase is not init")
+}
+
+// DBStorage - реализация интерфейса Storage с базой данных - DBStorage.
+// Использутся база данных PostgreSQL, драйвер pgx.
 type DBStorage struct {
+	// DB - ссылка на пул подключений к postgre.
 	DB *pgxpool.Pool
 }
 
+// InsertURL - метод сохранинеия данных в бд.
 func (s *DBStorage) InsertURL(ctx context.Context, originalURL string, shortURL string, userID string) error {
 	_, err := s.DB.Exec(ctx, "INSERT INTO short_urls (original, short, uid) values ($1, $2, $3)", originalURL, shortURL, userID)
 	if err != nil {
@@ -94,6 +118,7 @@ func (s *DBStorage) InsertURL(ctx context.Context, originalURL string, shortURL 
 	return nil
 }
 
+// GetOriginalURLByShort - метод получения оригинального url по сокращенному из базы данных.
 func (s *DBStorage) GetOriginalURLByShort(ctx context.Context, shotURL string) (string, bool, error) {
 	logger.Log.Info("Serach shortURL: ", zap.String("1", shotURL))
 	rows := s.DB.QueryRow(ctx, "SELECT original, deleted FROM short_urls where short = $1", shotURL)
@@ -109,6 +134,8 @@ func (s *DBStorage) GetOriginalURLByShort(ctx context.Context, shotURL string) (
 
 	return original, deleted, nil
 }
+
+// GetShortByOriginalURL - метод получения сокращенного url по оригинальному из бд.
 func (s *DBStorage) GetShortByOriginalURL(ctx context.Context, original string) (string, error) {
 	rows := s.DB.QueryRow(ctx, "SELECT short FROM short_urls where original = $1", original)
 	// if err != nil {
@@ -122,6 +149,8 @@ func (s *DBStorage) GetShortByOriginalURL(ctx context.Context, original string) 
 
 	return strings.TrimSpace(result), nil
 }
+
+// CheckDBConnect - метод для проверки подключения к базе данных.
 func (s *DBStorage) CheckDBConnect(ctx context.Context) error {
 	if err := s.DB.Ping(ctx); err != nil {
 		return errors.Wrap(err, "Error while checking connection")
@@ -129,6 +158,7 @@ func (s *DBStorage) CheckDBConnect(ctx context.Context) error {
 	return nil
 }
 
+// GetAllUrls - метод получения всех сокращенных url пользователем из бд.
 func (s *DBStorage) GetAllUrls(ctx context.Context, userID string) ([]models.URLModel, error) {
 	rows, err := s.DB.Query(ctx, "SELECT original, short FROM short_urls where uid = $1", userID)
 	if err != nil {
@@ -155,6 +185,8 @@ func (s *DBStorage) GetAllUrls(ctx context.Context, userID string) ([]models.URL
 
 	return urls, nil
 }
+
+// CreateTable - метод создания таблицы в базе данных, если ее не существует.
 func (s *DBStorage) CreateTable(ctx context.Context) error {
 	createTableStr := `CREATE TABLE IF NOT EXISTS short_urls
 	(
@@ -172,6 +204,9 @@ func (s *DBStorage) CreateTable(ctx context.Context) error {
 	}
 	return nil
 }
+
+// InsertBanchURL - метод сохраниения нескольких url в базу данных.
+// Используются транзакции.
 func (s *DBStorage) InsertBanchURL(ctx context.Context, value []models.BantchURL) error {
 	tx, err := s.DB.Begin(ctx)
 	if err != nil {
@@ -192,6 +227,8 @@ func (s *DBStorage) InsertBanchURL(ctx context.Context, value []models.BantchURL
 	return tx.Commit(ctx)
 }
 
+// SetDeleteURLStatus - метод установки статуса Deleted в базе данных.
+// В реализации используются транзакции.
 func (s *DBStorage) SetDeleteURLStatus(ctx context.Context, value []string) error {
 	tx, err := s.DB.Begin(ctx)
 	if err != nil {
@@ -209,5 +246,21 @@ func (s *DBStorage) SetDeleteURLStatus(ctx context.Context, value []string) erro
 			return err
 		}
 	}
+	return tx.Commit(ctx)
+}
+
+// Clear - метод очистки таблицы в базе данных.
+func (s *DBStorage) Clear(ctx context.Context) error {
+	tx, err := s.DB.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	_, err = tx.Exec(ctx, `DELETE FROM short_urls`)
+	if err != nil {
+		return errors.Wrap(err, "users table err")
+	}
+
 	return tx.Commit(ctx)
 }

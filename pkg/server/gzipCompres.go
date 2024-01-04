@@ -8,11 +8,13 @@ import (
 	"strings"
 )
 
+// gzipWriter - доплоненный метод Write для реализации mv с жатием данных.
 type gzipWriter struct {
 	w  http.ResponseWriter
 	zw *gzip.Writer
 }
 
+// newGzipWriter - создание Writer со сжатием.
 func newGzipWriter(w http.ResponseWriter) *gzipWriter {
 	return &gzipWriter{
 		w:  w,
@@ -20,14 +22,17 @@ func newGzipWriter(w http.ResponseWriter) *gzipWriter {
 	}
 }
 
+// Реализация метода Header.
 func (c *gzipWriter) Header() http.Header {
 	return c.w.Header()
 }
 
+// Реализация метода Write.
 func (c *gzipWriter) Write(p []byte) (int, error) {
 	return c.zw.Write(p)
 }
 
+// Реализация метода WriteHeader.
 func (c *gzipWriter) WriteHeader(statusCode int) {
 	if statusCode < 300 || statusCode == 409 {
 		c.w.Header().Set("Content-Encoding", "gzip")
@@ -40,13 +45,13 @@ func (c *gzipWriter) Close() error {
 	return c.zw.Close()
 }
 
-// gzipReader реализует интерфейс io.ReadCloser и позволяет прозрачно для сервера
-// декомпрессировать получаемые от клиента данные
+// gzipReader реализует интерфейс io.ReadCloser и позволяет прозрачно для сервера декомпрессировать получаемые от клиента данные.
 type gzipReader struct {
 	r  io.ReadCloser
 	zr *gzip.Reader
 }
 
+// newGzipReader - метод созадния экземпляра GzipReader.
 func newGzipReader(r io.ReadCloser) (*gzipReader, error) {
 	zr, err := gzip.NewReader(r)
 	if err != nil {
@@ -59,10 +64,12 @@ func newGzipReader(r io.ReadCloser) (*gzipReader, error) {
 	}, nil
 }
 
+// Реализация метода Read.
 func (c gzipReader) Read(p []byte) (n int, err error) {
 	return c.zr.Read(p)
 }
 
+// Реализация метода Close.
 func (c *gzipReader) Close() error {
 	if err := c.r.Close(); err != nil {
 		return err
@@ -70,6 +77,7 @@ func (c *gzipReader) Close() error {
 	return c.zr.Close()
 }
 
+// GzipMiddleware - middleware со сжатием данных.
 func GzipMiddleware(h http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !strings.Contains(r.Header.Get("Content-Encoding"), "gzip") {

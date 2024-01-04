@@ -1,3 +1,5 @@
+// Модуль main - основная точка входа в систему.
+// В пакете происходит подключение к базе данных, если имеется ссылка для подключения, создание storage, и инициализация logger и server.
 package main
 
 import (
@@ -5,6 +7,8 @@ import (
 	"flag"
 	"log"
 	"net/http"
+
+	"net/http/pprof"
 
 	"github.com/Dorrrke/shortener-url/internal/logger"
 	"github.com/Dorrrke/shortener-url/pkg/server"
@@ -15,8 +19,10 @@ import (
 	"go.uber.org/zap"
 )
 
-const FilePath string = "short-url-db.json" // Вынести эту константу в конфиг
+// FilePath — константа с названием файла для хранения данных при отсутствии подключения к бд.
+const FilePath string = "short-url-db.json"
 
+// ValueConfig структура хранящая сруктуры для парсинга пременных окуржения по средствам пакета env.
 type ValueConfig struct {
 	serverCfg     ServerAdrConfig
 	URLCfg        BaseURLConfig
@@ -24,15 +30,26 @@ type ValueConfig struct {
 	dataBaseDsn   DataBaseConf
 }
 
+// ServerAdrConfig - структура для получения переменной окружения SERVER_ADDRESS.
+// SERVER_ADDRESS - переменная окружения хранящая в себе адресс для запуска сервера.
 type ServerAdrConfig struct {
 	Addr string `env:"SERVER_ADDRESS,required"`
 }
+
+// BaseURLConfig - структура для получения переменной окружения BASE_URL.
+// BASE_URL - переменная окружения хранящаяя в себе базовый адресс для сокращенных url.
 type BaseURLConfig struct {
 	Addr string `env:"BASE_URL,required"`
 }
+
+// StorageRestor - структура для получения переменной окружения FILE_STORAGE_PATH.
+// FILE_STORAGE_PATH - переменная окружения хранящаяя в себе путь к файлу для хранения сокращенных url.
 type StorageRestor struct {
 	FilePathString string `env:"FILE_STORAGE_PATH,required"`
 }
+
+// DataBaseConf - структура для получения переменной окружения DATABASE_DSN.
+// DATABASE_DSN переменная окружения хранящаяя в себе адресс базы данных для подключения к ней.
 type DataBaseConf struct {
 	DBDSN string `env:"DATABASE_DSN,required"`
 }
@@ -120,6 +137,18 @@ func run(serv server.Server) error {
 		})
 		r.Get("/ping", logger.WithLogging(server.GzipMiddleware(serv.CheckDBConnectionHandler)))
 	})
+	r.HandleFunc("/debug/pprof", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, r.URL.Path[1:])
+	})
+
+	// Регистрация обработчиков pprof для различных типов профилирования
+	r.HandleFunc("/debug/pprof/heap", pprof.Index)
+	r.HandleFunc("/debug/pprof/goroutine", pprof.Index)
+	r.HandleFunc("/debug/pprof/block", pprof.Index)
+	r.HandleFunc("/debug/pprof/threadcreate", pprof.Index)
+	r.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+	r.HandleFunc("/debug/pprof/profile", pprof.Profile)
+	r.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
 
 	if serv.ServerConf.HostConfig.Host == "" {
 		return http.ListenAndServe(":8080", r)
