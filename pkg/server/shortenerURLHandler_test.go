@@ -68,6 +68,17 @@ func TestShortenerURLHandler(t *testing.T) {
 			body:    "www.youtube.com",
 			method:  http.MethodPost,
 		},
+		{
+			name: "Test Conflict Post hadler #5",
+			want: want{
+				code:        http.StatusConflict,
+				contentType: "text/plain",
+				shortURL:    "http://localhost:8080/",
+			},
+			request: "/",
+			body:    "https://www.youtube.com/",
+			method:  http.MethodPost,
+		},
 	}
 
 	for _, tt := range tests {

@@ -12,6 +12,8 @@ import (
 	"go.uber.org/zap"
 )
 
+var ErrMemStorageError = errors.New("url is alredy shorted")
+
 // Storage - итерфейс хранилища с необходимыми методами.
 type Storage interface {
 	InsertURL(ctx context.Context, originalURL string, shortURL string, userID string) error
@@ -34,6 +36,15 @@ type MemStorage struct {
 func (s *MemStorage) InsertURL(ctx context.Context, originalURL string, shortURL string, userID string) error {
 	if s.URLMap == nil {
 		return errors.New("Map is not init")
+	}
+	conflict := false
+	for _, v := range s.URLMap {
+		if v == originalURL {
+			conflict = true
+		}
+	}
+	if conflict {
+		return ErrMemStorageError
 	}
 	s.URLMap[shortURL] = originalURL
 	return nil

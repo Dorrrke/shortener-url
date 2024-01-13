@@ -136,6 +136,19 @@ func (s *Server) ShortenerURLHandler(res http.ResponseWriter, req *http.Request)
 	}
 
 	if err := s.saveURL(string(body), result, userID); err != nil {
+		if errors.Is(err, storage.ErrMemStorageError) {
+			shortURL, err := s.getURLByOriginalURL(string(body))
+			if err != nil {
+				logger.Log.Error("Error when read from base: ", zap.Error(err))
+				http.Error(res, "Не корректный запрос", http.StatusBadRequest)
+				return
+			}
+			result = shortURL
+			res.Header().Set("content-type", "text/plain")
+			res.WriteHeader(http.StatusConflict)
+			res.Write([]byte(result))
+			return
+		}
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {
 			if !pgerrcode.IsIntegrityConstraintViolation(pgErr.Code) {
@@ -209,6 +222,27 @@ func (s *Server) ShortenerJSONURLHandler(res http.ResponseWriter, req *http.Requ
 		result = "http://" + s.ServerConf.ShortURLHostConfig.String() + "/" + urlID
 	}
 	if err := s.saveURL(modelURL.URLAddres, result, userID); err != nil {
+		if errors.Is(err, storage.ErrMemStorageError) {
+			shortURL, err := s.getURLByOriginalURL(modelURL.URLAddres)
+			if err != nil {
+				logger.Log.Error("Error when read from base: ", zap.Error(err))
+				http.Error(res, "Не корректный запрос", http.StatusBadRequest)
+				return
+			}
+			result = shortURL
+			res.Header().Set("Content-Type", "application/json")
+			res.WriteHeader(http.StatusConflict)
+
+			enc := json.NewEncoder(res)
+			resultJSON := models.ResponseURLJson{
+				URLAddres: shortURL,
+			}
+			if err := enc.Encode(resultJSON); err != nil {
+				logger.Log.Debug("error encoding responce", zap.Error(err))
+				http.Error(res, "Не корректный запрос", http.StatusInternalServerError)
+			}
+			return
+		}
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {
 			if pgerrcode.IsIntegrityConstraintViolation(pgErr.Code) {
