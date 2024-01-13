@@ -12,6 +12,7 @@ import (
 	"go.uber.org/zap"
 )
 
+// ErrMemStorageError ошибка при попыттке записать уже существующий url в MemStorage.
 var ErrMemStorageError = errors.New("url is alredy shorted")
 
 // Storage - итерфейс хранилища с необходимыми методами.
