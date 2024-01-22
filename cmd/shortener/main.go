@@ -5,6 +5,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log"
 	"net/http"
 
@@ -21,6 +22,16 @@ import (
 
 // FilePath — константа с названием файла для хранения данных при отсутствии подключения к бд.
 const FilePath string = "short-url-db.json"
+
+// Глобальные переменные для вывода при запуске.
+var (
+	// buildVersion - версия сборки.
+	buildVersion string
+	// buildDate - дата сборки.
+	buildDate string
+	// buildCommit - комментарии к сборке.
+	buildCommit string
+)
 
 // ValueConfig структура хранящая сруктуры для парсинга пременных окуржения по средствам пакета env.
 type ValueConfig struct {
@@ -55,6 +66,23 @@ type DataBaseConf struct {
 }
 
 func main() {
+	if buildVersion == "" {
+		buildVersion = "N/A"
+	} else {
+		fmt.Printf("Build version: %s\n", buildVersion)
+	}
+
+	if buildDate == "" {
+		buildDate = "N/A"
+	} else {
+		fmt.Printf("Build date: %s\n", buildDate)
+	}
+
+	if buildCommit == "" {
+		buildCommit = "N/A"
+	} else {
+		fmt.Printf("Build commit: %s\n", buildCommit)
+	}
 
 	if err := logger.Initialize(zap.InfoLevel.String()); err != nil {
 		panic(err)
