@@ -18,6 +18,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
+	"golang.org/x/crypto/acme/autocert"
 )
 
 // FilePath — константа с названием файла для хранения данных при отсутствии подключения к бд.
@@ -98,9 +99,12 @@ func main() {
 	flag.Var(&URLServer.ServerConf.ShortURLHostConfig, "b", "address and port to run short URL")
 	flag.StringVar(&fileName, "f", "", "storage file path")
 	flag.StringVar(&DBaddr, "d", "", "databse addr")
+	httpsFlag := flag.Bool("s", false, "use https server")
 	flag.Parse()
 	URLServer.AddFilePath(fileName)
-
+	if *httpsFlag {
+		log.Print("https")
+	}
 	servErr := env.Parse(&cfg.serverCfg)
 	if servErr == nil {
 		URLServer.ServerConf.HostConfig.Set(cfg.serverCfg.Addr)
@@ -141,13 +145,13 @@ func main() {
 	if err := URLServer.RestorStorage(); err != nil {
 		logger.Log.Error("Error restor storage: ", zap.Error(err))
 	}
-	if err := run(URLServer); err != nil {
+	if err := run(URLServer, httpsFlag); err != nil {
 		panic(err)
 	}
 
 }
 
-func run(serv server.Server) error {
+func run(serv server.Server, httpsFlag *bool) error {
 
 	logger.Log.Info("Running server")
 	r := chi.NewRouter()
@@ -178,11 +182,22 @@ func run(serv server.Server) error {
 	r.HandleFunc("/debug/pprof/profile", pprof.Profile)
 	r.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
 
-	if serv.ServerConf.HostConfig.Host == "" {
-		return http.ListenAndServe(":8080", r)
+	server := &http.Server{Handler: r}
+	if serv.ServerConf.HostConfig.Host != "" {
+		server.Addr = serv.ServerConf.HostConfig.String()
 	} else {
-		return http.ListenAndServe(serv.ServerConf.HostConfig.String(), r)
+		server.Addr = ":8080"
 	}
+	if *httpsFlag {
+		manager := &autocert.Manager{
+			Cache:      autocert.DirCache("cache-dir"),
+			Prompt:     autocert.AcceptTOS,
+			HostPolicy: autocert.HostWhitelist("short.ru"),
+		}
+		server.TLSConfig = manager.TLSConfig()
+		return server.ListenAndServeTLS("", "")
+	}
+	return server.ListenAndServe()
 }
 
 func initDB(DBAddr string) *pgxpool.Pool {
