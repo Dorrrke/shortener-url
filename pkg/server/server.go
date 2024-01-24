@@ -31,10 +31,10 @@ const SecretKey = "Secret123Key345Super"
 
 // структура сервера, с данными о хранилище, конфиге, логгере и каналом для удаления url.
 type Server struct {
-	storage       storage.Storage
-	ServerConf    config.Config
 	filePath      string
 	deleteQuereCh chan string
+	storage       storage.Storage
+	ServerConf    config.Config
 }
 
 // restorURL - структура используемая для воостановления хранилища из json файла.
