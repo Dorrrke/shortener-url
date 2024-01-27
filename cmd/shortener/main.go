@@ -218,7 +218,7 @@ func run(serv server.Server, httpsFlag *bool, cfg config.AppConfig) error {
 	} else {
 		server.Addr = ":8080"
 	}
-	if *httpsFlag || cfg.EnableHttps {
+	if *httpsFlag || cfg.EnableHTTPS {
 		manager := &autocert.Manager{
 			Cache:      autocert.DirCache("cache-dir"),
 			Prompt:     autocert.AcceptTOS,
