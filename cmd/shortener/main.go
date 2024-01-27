@@ -13,15 +13,16 @@ import (
 
 	"net/http/pprof"
 
-	"github.com/Dorrrke/shortener-url/internal/config"
-	"github.com/Dorrrke/shortener-url/internal/logger"
-	"github.com/Dorrrke/shortener-url/pkg/server"
-	"github.com/Dorrrke/shortener-url/pkg/storage"
 	"github.com/caarlos0/env/v6"
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/acme/autocert"
+
+	"github.com/Dorrrke/shortener-url/internal/config"
+	"github.com/Dorrrke/shortener-url/internal/logger"
+	"github.com/Dorrrke/shortener-url/pkg/server"
+	"github.com/Dorrrke/shortener-url/pkg/storage"
 )
 
 // FilePath — константа с названием файла для хранения данных при отсутствии подключения к бд.
