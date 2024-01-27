@@ -100,7 +100,7 @@ func main() {
 	var DBaddr string
 	var cfgPath string
 	var config config.AppConfig
-	var dbConnection pgxpool.Conn
+	var dbConnection *pgxpool.Pool
 
 	// TODO: Перенести конфигурацию сервиса в другой пакет
 	URLServer.New()
@@ -149,7 +149,7 @@ func main() {
 	}
 	dbDsnErr := env.Parse(&cfg.dataBaseDsn)
 	if dbDsnErr == nil {
-		dbConnection := initDB(cfg.dataBaseDsn.DBDSN)
+		dbConnection = initDB(cfg.dataBaseDsn.DBDSN)
 		URLServer.AddStorage(&storage.DBStorage{DB: dbConnection})
 		defer dbConnection.Close()
 	}
@@ -157,7 +157,7 @@ func main() {
 	logger.Log.Info("DataBase URL flag: " + DBaddr)
 
 	if cfg.dataBaseDsn.DBDSN == "" && DBaddr != "" {
-		dbConnection := initDB(DBaddr)
+		dbConnection = initDB(DBaddr)
 		URLServer.AddStorage(&storage.DBStorage{DB: dbConnection})
 		defer dbConnection.Close()
 	}
@@ -189,7 +189,7 @@ func main() {
 
 	signal := <-stop
 	logger.Log.Info("stopping server", zap.String("signal", signal.String()))
-	stopService(server, &dbConnection)
+	stopService(server, dbConnection)
 
 }
 
@@ -252,8 +252,10 @@ func initDB(DBAddr string) *pgxpool.Pool {
 
 }
 
-func stopService(serverHTTP *http.Server, dbConnection *pgxpool.Conn) {
-	err := dbConnection.Conn().Close(context.Background())
+func stopService(serverHTTP *http.Server, dbConnection *pgxpool.Pool) {
+	if dbConnection != nil {
+		dbConnection.Close()
+	}
 	serverHTTP.Shutdown(context.Background())
-	logger.Log.Info("Service stop", zap.Error(err))
+	logger.Log.Info("Service stop")
 }
