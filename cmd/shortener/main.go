@@ -10,6 +10,8 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"net/http/pprof"
 
@@ -176,13 +178,21 @@ func main() {
 	if err := URLServer.RestorStorage(); err != nil {
 		logger.Log.Error("Error restor storage: ", zap.Error(err))
 	}
-	if err := run(URLServer, httpsFlag, config); err != nil {
-		panic(err)
-	}
+	server := &http.Server{}
+	go run(URLServer, server, httpsFlag, config)
+	// if err := run(URLServer, server, httpsFlag, config); err != nil {
+	// 	panic(err)
+	// }
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
+
+	signal := <-stop
+	logger.Log.Info("stopping server", zap.String("signal", signal.String()))
+	stopService(server, URLServer)
 
 }
 
-func run(serv server.Server, httpsFlag *bool, cfg config.AppConfig) error {
+func run(serv server.Server, serverHTTP *http.Server, httpsFlag *bool, cfg config.AppConfig) error {
 
 	logger.Log.Info("Running server")
 	r := chi.NewRouter()
@@ -213,11 +223,11 @@ func run(serv server.Server, httpsFlag *bool, cfg config.AppConfig) error {
 	r.HandleFunc("/debug/pprof/profile", pprof.Profile)
 	r.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
 
-	server := &http.Server{Handler: r}
+	serverHTTP.Handler = r
 	if serv.ServerConf.HostConfig.Host != "" {
-		server.Addr = serv.ServerConf.HostConfig.String()
+		serverHTTP.Addr = serv.ServerConf.HostConfig.String()
 	} else {
-		server.Addr = ":8080"
+		serverHTTP.Addr = ":8080"
 	}
 	if *httpsFlag || cfg.EnableHTTPS {
 		manager := &autocert.Manager{
@@ -225,10 +235,10 @@ func run(serv server.Server, httpsFlag *bool, cfg config.AppConfig) error {
 			Prompt:     autocert.AcceptTOS,
 			HostPolicy: autocert.HostWhitelist("short.ru"),
 		}
-		server.TLSConfig = manager.TLSConfig()
-		return server.ListenAndServeTLS("", "")
+		serverHTTP.TLSConfig = manager.TLSConfig()
+		return serverHTTP.ListenAndServeTLS("", "")
 	}
-	return server.ListenAndServe()
+	return serverHTTP.ListenAndServe()
 }
 
 func initDB(DBAddr string) *pgxpool.Pool {
@@ -239,4 +249,10 @@ func initDB(DBAddr string) *pgxpool.Pool {
 	}
 	return pool
 
+}
+
+func stopService(serverHTTP *http.Server, serv server.Server) {
+	serv.CloseDataBase()
+	serverHTTP.Shutdown(context.Background())
+	logger.Log.Info("Service stop")
 }

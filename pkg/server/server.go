@@ -699,3 +699,7 @@ func (s *Server) deleteUrls() {
 		}
 	}
 }
+
+func (s *Server) CloseDataBase() {
+	s.storage.CloseStorage()
+}
