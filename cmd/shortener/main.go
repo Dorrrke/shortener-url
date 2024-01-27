@@ -4,13 +4,16 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 
 	"net/http/pprof"
 
+	"github.com/Dorrrke/shortener-url/internal/config"
 	"github.com/Dorrrke/shortener-url/internal/logger"
 	"github.com/Dorrrke/shortener-url/pkg/server"
 	"github.com/Dorrrke/shortener-url/pkg/storage"
@@ -92,9 +95,12 @@ func main() {
 	var cfg ValueConfig
 	var fileName string
 	var DBaddr string
+	var cfgPath string
+	var config config.AppConfig
 
+	// TODO: Перенести конфигурацию сервиса в другой пакет
 	URLServer.New()
-
+	flag.StringVar(&cfgPath, "config", "", "config file path")
 	flag.Var(&URLServer.ServerConf.HostConfig, "a", "address and port to run server")
 	flag.Var(&URLServer.ServerConf.ShortURLHostConfig, "b", "address and port to run short URL")
 	flag.StringVar(&fileName, "f", "", "storage file path")
@@ -102,6 +108,30 @@ func main() {
 	httpsFlag := flag.Bool("s", false, "use https server")
 	flag.Parse()
 	URLServer.AddFilePath(fileName)
+
+	if cfgPath != "" {
+		if _, err := os.Stat(cfgPath); os.IsNotExist(err) {
+			logger.Log.Error("Config file is not exist", zap.Error(err))
+			panic(err)
+		}
+		f, err := os.Open(cfgPath)
+		if err != nil {
+			logger.Log.Error("Error open file", zap.Error(err))
+			panic(err)
+		}
+		defer f.Close()
+		dec := json.NewDecoder(f)
+		if err := dec.Decode(&config); err != nil {
+			logger.Log.Error("error parse config file")
+			panic(err)
+		}
+		logger.Log.Info("config from json", zap.Any("config", config))
+		URLServer.ServerConf.HostConfig.Set(config.ServerAddress)
+		URLServer.ServerConf.ShortURLHostConfig.Set(config.BaseURL)
+		DBaddr = config.DatabaseDsn
+		fileName = config.FileStoragePath
+	}
+
 	if *httpsFlag {
 		log.Print("https")
 	}
@@ -145,13 +175,13 @@ func main() {
 	if err := URLServer.RestorStorage(); err != nil {
 		logger.Log.Error("Error restor storage: ", zap.Error(err))
 	}
-	if err := run(URLServer, httpsFlag); err != nil {
+	if err := run(URLServer, httpsFlag, config); err != nil {
 		panic(err)
 	}
 
 }
 
-func run(serv server.Server, httpsFlag *bool) error {
+func run(serv server.Server, httpsFlag *bool, cfg config.AppConfig) error {
 
 	logger.Log.Info("Running server")
 	r := chi.NewRouter()
@@ -188,7 +218,7 @@ func run(serv server.Server, httpsFlag *bool) error {
 	} else {
 		server.Addr = ":8080"
 	}
-	if *httpsFlag {
+	if *httpsFlag || cfg.EnableHttps {
 		manager := &autocert.Manager{
 			Cache:      autocert.DirCache("cache-dir"),
 			Prompt:     autocert.AcceptTOS,
