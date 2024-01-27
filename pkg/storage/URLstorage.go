@@ -26,7 +26,6 @@ type Storage interface {
 	InsertBanchURL(ctx context.Context, value []models.BantchURL) error
 	SetDeleteURLStatus(ctx context.Context, value []string) error
 	Clear(ctx context.Context) error
-	CloseStorage()
 }
 
 // MemStorage - реализация интерфейса Storage без базы данных, при помощи map - MemStorage
@@ -113,10 +112,6 @@ func (s *MemStorage) InsertBanchURL(ctx context.Context, value []models.BantchUR
 // Так как это MemStorage возвращает ошибку, что бд не подключена.
 func (s *MemStorage) Clear(ctx context.Context) error {
 	return errors.New("DataBase is not init")
-}
-
-func (s *MemStorage) CloseStorage() {
-	logger.Log.Info("Mem storage close")
 }
 
 // DBStorage - реализация интерфейса Storage с базой данных - DBStorage.
@@ -280,8 +275,4 @@ func (s *DBStorage) Clear(ctx context.Context) error {
 	}
 
 	return tx.Commit(ctx)
-}
-
-func (s *DBStorage) CloseStorage() {
-	s.DB.Close()
 }
