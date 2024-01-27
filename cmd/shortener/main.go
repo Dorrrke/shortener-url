@@ -253,7 +253,7 @@ func initDB(DBAddr string) *pgxpool.Pool {
 }
 
 func stopService(serverHTTP *http.Server, dbConnection *pgxpool.Conn) {
-	dbConnection.Conn().Close(context.Background())
+	err := dbConnection.Conn().Close(context.Background())
 	serverHTTP.Shutdown(context.Background())
-	logger.Log.Info("Service stop")
+	logger.Log.Info("Service stop", zap.Error(err))
 }
