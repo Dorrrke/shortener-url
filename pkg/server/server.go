@@ -34,7 +34,7 @@ type Server struct {
 	filePath      string
 	deleteQuereCh chan string
 	storage       storage.Storage
-	ServerConf    config.Config
+	Config        *config.AppConfig
 }
 
 // restorURL - структура используемая для воостановления хранилища из json файла.
@@ -49,6 +49,18 @@ type Claims struct {
 	UserID string
 }
 
+func New(stor storage.Storage, cfg *config.AppConfig) *Server {
+	deleteCh := make(chan string, 5)
+	server := Server{
+		filePath:      cfg.FileStoragePath,
+		deleteQuereCh: deleteCh,
+		storage:       stor,
+		Config:        cfg,
+	}
+	go server.deleteUrls()
+	return &server
+}
+
 // GetOriginalURLHandler - хендлер для перехода на оригинальный адресс по сокращенной ссылке.
 // В качестве ответа, хендлер находит в хранилище оригинальый url соответсвующий полученному сокращенному url и возвращает его в теле ответа с статус кодом 307 (StatusTemporaryRedirect).
 // В том случае, если адрес удален, возвращается ошибка с кодм 410 (StatusGone).
@@ -56,10 +68,10 @@ func (s *Server) GetOriginalURLHandler(res http.ResponseWriter, req *http.Reques
 	URLId := chi.URLParam(req, "id")
 	if URLId != "" {
 		var shortURL string
-		if s.ServerConf.ShortURLHostConfig.Host == "" {
+		if s.Config.BaseURL == "" {
 			shortURL = "http://" + req.Host + "/" + URLId
 		} else {
-			shortURL = "http://" + s.ServerConf.ShortURLHostConfig.String() + "/" + URLId
+			shortURL = "http://" + s.Config.BaseURL + "/" + URLId
 		}
 		url, deteted, err := s.getURLByShortURL(shortURL)
 
@@ -129,10 +141,10 @@ func (s *Server) ShortenerURLHandler(res http.ResponseWriter, req *http.Request)
 	}
 	urlID := strings.Split(uuid.New().String(), "-")[0]
 	var result string
-	if s.ServerConf.ShortURLHostConfig.Host == "" {
+	if s.Config.BaseURL == "" {
 		result = "http://" + req.Host + "/" + urlID
 	} else {
-		result = "http://" + s.ServerConf.ShortURLHostConfig.String() + "/" + urlID
+		result = "http://" + s.Config.BaseURL + "/" + urlID
 	}
 
 	if err := s.saveURL(string(body), result, userID); err != nil {
@@ -216,10 +228,10 @@ func (s *Server) ShortenerJSONURLHandler(res http.ResponseWriter, req *http.Requ
 	}
 	urlID := strings.Split(uuid.New().String(), "-")[0]
 	var result string
-	if s.ServerConf.ShortURLHostConfig.Host == "" {
+	if s.Config.BaseURL == "" {
 		result = "http://" + req.Host + "/" + urlID
 	} else {
-		result = "http://" + s.ServerConf.ShortURLHostConfig.String() + "/" + urlID
+		result = "http://" + s.Config.BaseURL + "/" + urlID
 	}
 	if err := s.saveURL(modelURL.URLAddres, result, userID); err != nil {
 		if errors.Is(err, storage.ErrMemStorageError) {
@@ -396,10 +408,10 @@ func (s *Server) InsertBatchHandler(res http.ResponseWriter, req *http.Request) 
 		if validationURL(v.OriginalURL) {
 			urlID := strings.Split(uuid.New().String(), "-")[0]
 			var shortURL string
-			if s.ServerConf.ShortURLHostConfig.Host == "" {
+			if s.Config.BaseURL == "" {
 				shortURL = "http://" + req.Host + "/" + urlID
 			} else {
-				shortURL = "http://" + s.ServerConf.ShortURLHostConfig.String() + "/" + urlID
+				shortURL = "http://" + s.Config.BaseURL + "/" + urlID
 			}
 			bantchValues = append(bantchValues, models.BantchURL{
 				OriginalURL: v.OriginalURL,
@@ -473,10 +485,10 @@ func (s *Server) DeleteURLHandler(res http.ResponseWriter, req *http.Request) {
 	go func() {
 		for _, data := range moodel {
 			var deleteURL string
-			if s.ServerConf.ShortURLHostConfig.Host == "" {
+			if s.Config.BaseURL == "" {
 				deleteURL = "http://" + req.Host + "/" + data
 			} else {
-				deleteURL = "http://" + s.ServerConf.ShortURLHostConfig.String() + "/" + data
+				deleteURL = "http://" + s.Config.BaseURL + "/" + data
 			}
 			s.deleteQuereCh <- deleteURL
 		}
