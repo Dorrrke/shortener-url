@@ -6,6 +6,7 @@ import (
 	"errors"
 	"flag"
 	"os"
+	"strings"
 
 	"github.com/Dorrrke/shortener-url/internal/logger"
 	"github.com/caarlos0/env/v10"
@@ -35,6 +36,11 @@ func MustLoad() *AppConfig {
 	httpsFlag := flag.Bool("s", false, "use https server")
 	flag.Parse()
 	cfg.EnableHTTPS = *httpsFlag
+
+	if strings.Contains(cfg.BaseURL, "http://") {
+		correctURL := strings.Replace(cfg.BaseURL, "http://", "", -1)
+		cfg.BaseURL = correctURL
+	}
 
 	logger.Log.Info("config from flags", zap.Any("cfg", cfg))
 
