@@ -36,6 +36,8 @@ func MustLoad() *AppConfig {
 	flag.Parse()
 	cfg.EnableHTTPS = *httpsFlag
 
+	logger.Log.Info("config from flags", zap.Any("cfg", cfg))
+
 	var tempCfg AppConfig
 	if err := env.Parse(&tempCfg); err == nil {
 		logger.Log.Info("parsed cfg from env", zap.Any("cfg", cfg))
