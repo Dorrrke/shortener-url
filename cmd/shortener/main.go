@@ -72,7 +72,7 @@ func main() {
 	var stor storage.Storage
 	appCfg := config.MustLoad()
 	logger.Log.Info("Server config", zap.Any("cfg", appCfg))
-	if appCfg.DatabaseDsn == "" {
+	if appCfg.DatabaseDsn != "" {
 		dbConn := initDB(appCfg.DatabaseDsn)
 		stor = &storage.DBStorage{DB: dbConn}
 	} else {
