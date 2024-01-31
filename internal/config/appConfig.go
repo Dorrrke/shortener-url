@@ -25,10 +25,6 @@ type AppConfig struct {
 // Функция парсит переменные оркужения, флаги и данные из файла конфига.
 func MustLoad() *AppConfig {
 	var cfg AppConfig
-	if err := env.Parse(&cfg); err != nil {
-		logger.Log.Error("env is empty or not exist", zap.Error(err))
-	}
-	logger.Log.Info("parsed cfg from env", zap.Any("cfg", cfg))
 
 	var cfgFilePath string
 	flag.StringVar(&cfgFilePath, "config", "", "config file path")
@@ -39,6 +35,11 @@ func MustLoad() *AppConfig {
 	httpsFlag := flag.Bool("s", false, "use https server")
 	flag.Parse()
 	cfg.EnableHTTPS = *httpsFlag
+
+	if err := env.Parse(&cfg); err != nil {
+		logger.Log.Error("env is empty or not exist", zap.Error(err))
+	}
+	logger.Log.Info("parsed cfg from env", zap.Any("cfg", cfg))
 
 	if cfg.ServerAddress == "" && cfg.BaseURL == "" && cfg.DatabaseDsn == "" && cfg.FileStoragePath == "" {
 		fileConfig, err := uploadConfigFromFile(cfgFilePath)

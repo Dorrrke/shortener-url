@@ -71,6 +71,7 @@ func main() {
 
 	var stor storage.Storage
 	appCfg := config.MustLoad()
+	logger.Log.Info("Server config", zap.Any("cfg", appCfg))
 	if appCfg.DatabaseDsn != "" {
 		dbConn := initDB(appCfg.DatabaseDsn)
 		defer dbConn.Close()
@@ -84,7 +85,6 @@ func main() {
 	}
 
 	server := &http.Server{}
-	go run(*serverAPI, server)
 
 	g, gCtx := errgroup.WithContext(ctx)
 	g.Go(func() error {
@@ -144,8 +144,10 @@ func run(serv server.Server, serverHTTP *http.Server) error {
 			HostPolicy: autocert.HostWhitelist("short.ru"),
 		}
 		serverHTTP.TLSConfig = manager.TLSConfig()
+		logger.Log.Info("Server with TLS started", zap.String("addres", serv.Config.ServerAddress))
 		return serverHTTP.ListenAndServeTLS("", "")
 	}
+	logger.Log.Info("Server without TLS started", zap.String("addres", serv.Config.ServerAddress))
 	return serverHTTP.ListenAndServe()
 }
 
