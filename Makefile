@@ -4,7 +4,7 @@ build:
 	go build .\cmd\shortener\main.go
 	go build .\cmd\staticlint\mycheck.go
 test:
-	go test ./... -coverprofile cover.out
+	go test ./... -v -coverprofile cover.out
 	go tool cover -func cover.out
 linter: build
 	./mycheck.exe -shadow=false ./pkg/server/server.go

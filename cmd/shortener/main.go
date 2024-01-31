@@ -72,12 +72,12 @@ func main() {
 	var stor storage.Storage
 	appCfg := config.MustLoad()
 	logger.Log.Info("Server config", zap.Any("cfg", appCfg))
-	if appCfg.DatabaseDsn != "" {
+	if appCfg.DatabaseDsn == "" {
 		dbConn := initDB(appCfg.DatabaseDsn)
-		defer dbConn.Close()
 		stor = &storage.DBStorage{DB: dbConn}
+	} else {
+		stor = &storage.MemStorage{URLMap: make(map[string]string)}
 	}
-	stor = &storage.MemStorage{URLMap: make(map[string]string)}
 
 	serverAPI := server.New(stor, appCfg)
 	if err := serverAPI.RestorStorage(); err != nil {

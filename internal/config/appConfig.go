@@ -36,8 +36,10 @@ func MustLoad() *AppConfig {
 	flag.Parse()
 	cfg.EnableHTTPS = *httpsFlag
 
-	if err := env.Parse(&cfg); err != nil {
-		logger.Log.Error("env is empty or not exist", zap.Error(err))
+	var tempCfg AppConfig
+	if err := env.Parse(&tempCfg); err == nil {
+		logger.Log.Info("parsed cfg from env", zap.Any("cfg", cfg))
+		return &tempCfg
 	}
 	logger.Log.Info("parsed cfg from env", zap.Any("cfg", cfg))
 
@@ -63,7 +65,7 @@ func MustLoad() *AppConfig {
 func uploadConfigFromFile(cfgPath string) (AppConfig, error) {
 	var config AppConfig
 	if cfgPath == "" {
-		return AppConfig{}, errors.New("Config path is empty")
+		return AppConfig{}, errors.New("config path is empty")
 	}
 	if _, err := os.Stat(cfgPath); os.IsNotExist(err) {
 		logger.Log.Error("Config file is not exist", zap.Error(err))
