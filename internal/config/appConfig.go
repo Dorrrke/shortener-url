@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/Dorrrke/shortener-url/internal/logger"
-	"github.com/caarlos0/env/v10"
 	"go.uber.org/zap"
 )
 
@@ -48,26 +47,23 @@ func MustLoad() *AppConfig {
 	logger.Log.Info("config from flags", zap.Any("cfg", cfg))
 	logger.Log.Info("config file path", zap.String("cfg file", cfgFilePath))
 
+	if cfg.BaseURL == "" {
+		cfg.BaseURL = os.Getenv("BASE_URL")
+	}
+	if cfg.DatabaseDsn == "" {
+		cfg.DatabaseDsn = os.Getenv("DATABASE_DSN")
+	}
 	if cfg.FileStoragePath == "" {
-		cfg.FileStoragePath = FilePath
-	}
-
-	var tempCfg AppConfig
-	if err := env.Parse(&tempCfg); err == nil {
-		logger.Log.Info("env does not err;")
-		logger.Log.Info("parsed cfg from env", zap.Any("cfg", tempCfg))
-		if tempCfg.FileStoragePath == "" {
-			if cfg.FileStoragePath == "" {
-				tempCfg.FileStoragePath = FilePath
-				return &tempCfg
-			}
-			tempCfg.FileStoragePath = cfg.FileStoragePath
-			return &tempCfg
+		cfg.FileStoragePath = os.Getenv("FILE_STORAGE_PATH")
+		if cfg.FileStoragePath == "" {
+			cfg.FileStoragePath = FilePath
 		}
-		return &tempCfg
+	}
+	if cfg.ServerAddress == "" {
+		cfg.ServerAddress = os.Getenv("SERVER_ADDRESS")
 	}
 
-	if cfg.ServerAddress == "" && cfg.BaseURL == "" && cfg.DatabaseDsn == "" && cfg.FileStoragePath == "" {
+	if cfg.ServerAddress == "" && cfg.BaseURL == "" && cfg.DatabaseDsn == "" {
 		logger.Log.Info("Check config file")
 		fileConfig, err := uploadConfigFromFile(cfgFilePath)
 		if err != nil {
