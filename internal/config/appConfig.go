@@ -63,11 +63,10 @@ func MustLoad() *AppConfig {
 		if err != nil {
 			logger.Log.Error("config parsing from file error", zap.Error(err))
 			return &AppConfig{
-				ServerAddress:   ":8080",
-				BaseURL:         "",
-				FileStoragePath: "",
-				DatabaseDsn:     "",
-				EnableHTTPS:     cfg.EnableHTTPS,
+				ServerAddress: ":8080",
+				BaseURL:       "",
+				DatabaseDsn:   "",
+				EnableHTTPS:   cfg.EnableHTTPS,
 			}
 		}
 		return &fileConfig
