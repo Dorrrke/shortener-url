@@ -49,6 +49,7 @@ type Claims struct {
 	UserID string
 }
 
+// New - метод создание экземпляра типа Server.
 func New(stor storage.Storage, cfg *config.AppConfig) *Server {
 	deleteCh := make(chan string, 5)
 	server := Server{
