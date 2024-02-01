@@ -47,15 +47,23 @@ func MustLoad() *AppConfig {
 
 	logger.Log.Info("config from flags", zap.Any("cfg", cfg))
 
-	var tempCfg AppConfig
-	if err := env.Parse(&tempCfg); err == nil {
-		logger.Log.Info("parsed cfg from env", zap.Any("cfg", cfg))
-		return &tempCfg
-	}
-	logger.Log.Info("parsed cfg from env", zap.Any("cfg", cfg))
-
 	if cfg.FileStoragePath == "" {
 		cfg.FileStoragePath = FilePath
+	}
+
+	var tempCfg AppConfig
+	if err := env.Parse(&tempCfg); err == nil {
+		logger.Log.Info("env does not err;")
+		logger.Log.Info("parsed cfg from env", zap.Any("cfg", tempCfg))
+		if tempCfg.FileStoragePath == "" {
+			if cfg.FileStoragePath == "" {
+				tempCfg.FileStoragePath = FilePath
+				return &tempCfg
+			}
+			tempCfg.FileStoragePath = cfg.FileStoragePath
+			return &tempCfg
+		}
+		return &tempCfg
 	}
 
 	if cfg.ServerAddress == "" && cfg.BaseURL == "" && cfg.DatabaseDsn == "" && cfg.FileStoragePath == "" {
