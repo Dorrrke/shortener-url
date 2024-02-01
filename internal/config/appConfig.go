@@ -46,6 +46,7 @@ func MustLoad() *AppConfig {
 	}
 
 	logger.Log.Info("config from flags", zap.Any("cfg", cfg))
+	logger.Log.Info("config file path", zap.String("cfg file", cfgFilePath))
 
 	if cfg.FileStoragePath == "" {
 		cfg.FileStoragePath = FilePath
@@ -67,6 +68,7 @@ func MustLoad() *AppConfig {
 	}
 
 	if cfg.ServerAddress == "" && cfg.BaseURL == "" && cfg.DatabaseDsn == "" && cfg.FileStoragePath == "" {
+		logger.Log.Info("Check config file")
 		fileConfig, err := uploadConfigFromFile(cfgFilePath)
 		if err != nil {
 			logger.Log.Error("config parsing from file error", zap.Error(err))
