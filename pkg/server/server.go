@@ -513,9 +513,11 @@ func (s *Server) GetFilePath() string {
 
 // RestorStorage - функция для восстановления харнилища после перезапуска сервиса.
 func (s *Server) RestorStorage() error {
-	if err := s.CreateTable(); err != nil {
-		logger.Log.Info("Error when create table: " + err.Error())
-		return errors.Wrap(err, "Error when create table: ")
+	if err := s.storage.CheckDBConnect(context.Background()); err == nil {
+		if err := s.CreateTable(); err != nil {
+			logger.Log.Info("Error when create table: " + err.Error())
+			return errors.Wrap(err, "Error when create table: ")
+		}
 	}
 	if s.filePath != "" {
 		file, err := os.OpenFile(s.filePath, os.O_RDONLY|os.O_CREATE, 0666)

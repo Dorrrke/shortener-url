@@ -13,6 +13,9 @@ import (
 	"go.uber.org/zap"
 )
 
+// FilePath — константа с названием файла для хранения данных при отсутствии подключения к бд.
+const FilePath string = "short-url-db.json"
+
 // AppConfig - сттруктура для хранения конфигураци и конфигурации сервиса.
 type AppConfig struct {
 	ServerAddress   string `json:"server_address" env:"SERVER_ADDRESS,required"`
@@ -50,6 +53,10 @@ func MustLoad() *AppConfig {
 		return &tempCfg
 	}
 	logger.Log.Info("parsed cfg from env", zap.Any("cfg", cfg))
+
+	if cfg.FileStoragePath == "" {
+		cfg.FileStoragePath = FilePath
+	}
 
 	if cfg.ServerAddress == "" && cfg.BaseURL == "" && cfg.DatabaseDsn == "" && cfg.FileStoragePath == "" {
 		fileConfig, err := uploadConfigFromFile(cfgFilePath)
