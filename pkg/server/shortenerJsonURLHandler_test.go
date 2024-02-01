@@ -105,6 +105,15 @@ func BenchmarkShortenerJsonURLHandler(b *testing.B) {
 		var URLServer Server
 		URLServer.AddStorage(&storage.MemStorage{URLMap: make(map[string]string)})
 
+		cfg := config.AppConfig{
+			ServerAddress:   "localhost:8080",
+			BaseURL:         "",
+			FileStoragePath: "",
+			DatabaseDsn:     "",
+			EnableHTTPS:     false,
+		}
+		URLServer.Config = &cfg
+
 		body := strings.NewReader(`{"url":"https://www.youtube.com/"}`)
 		request := httptest.NewRequest(http.MethodPost, "/api/shorten", body)
 		w := httptest.NewRecorder()

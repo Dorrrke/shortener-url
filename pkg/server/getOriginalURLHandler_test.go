@@ -107,6 +107,16 @@ func BenchmarkGetOriginalURLHandler(b *testing.B) {
 			r.Get("/{id}", URLServer.GetOriginalURLHandler)
 		})
 		srv := httptest.NewServer(r)
+
+		cfg := config.AppConfig{
+			ServerAddress:   srv.Config.Addr,
+			BaseURL:         "",
+			FileStoragePath: "",
+			DatabaseDsn:     "",
+			EnableHTTPS:     false,
+		}
+		URLServer.Config = &cfg
+
 		postReq := resty.New().R()
 		postReq.Method = http.MethodPost
 		postReq.URL = srv.URL + "/"

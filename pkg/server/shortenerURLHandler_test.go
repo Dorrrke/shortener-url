@@ -105,6 +105,14 @@ func BenchmarkShortenerURLHandler(b *testing.B) {
 		b.StopTimer()
 		var URLServer Server
 		URLServer.AddStorage(&storage.MemStorage{URLMap: make(map[string]string)})
+		cfg := config.AppConfig{
+			ServerAddress:   "localhost:8080",
+			BaseURL:         "",
+			FileStoragePath: "",
+			DatabaseDsn:     "",
+			EnableHTTPS:     false,
+		}
+		URLServer.Config = &cfg
 
 		body := strings.NewReader("https://www.youtube.com/")
 		request := httptest.NewRequest(http.MethodPost, "/", body)
