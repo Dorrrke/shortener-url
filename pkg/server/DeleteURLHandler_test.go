@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/Dorrrke/shortener-url/internal/config"
 	"github.com/Dorrrke/shortener-url/internal/logger"
 	mock_storage "github.com/Dorrrke/shortener-url/mocks"
 	"github.com/go-chi/chi/v5"
@@ -27,6 +28,15 @@ func TestDeleteURLHandler(t *testing.T) {
 	})
 
 	srv := httptest.NewServer(r)
+
+	cfg := config.AppConfig{
+		ServerAddress:   srv.Config.Addr,
+		BaseURL:         "",
+		FileStoragePath: "",
+		DatabaseDsn:     "",
+		EnableHTTPS:     false,
+	}
+	server.Config = &cfg
 
 	type want struct {
 		code    int

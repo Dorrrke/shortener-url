@@ -2,18 +2,16 @@ package server
 
 import (
 	"context"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"github.com/Dorrrke/shortener-url/internal/config"
 	"github.com/Dorrrke/shortener-url/internal/logger"
 	mock_storage "github.com/Dorrrke/shortener-url/mocks"
-	"github.com/Dorrrke/shortener-url/pkg/storage"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-resty/resty/v2"
 	"github.com/golang/mock/gomock"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 )
@@ -30,6 +28,15 @@ func TestInsertBatchHandler(t *testing.T) {
 	})
 
 	srv := httptest.NewServer(r)
+
+	cfg := config.AppConfig{
+		ServerAddress:   srv.Config.Addr,
+		BaseURL:         "",
+		FileStoragePath: "",
+		DatabaseDsn:     "",
+		EnableHTTPS:     false,
+	}
+	server.Config = &cfg
 
 	type want struct {
 		code        int
@@ -118,19 +125,22 @@ func BenchmarkInsertBatchHandler(b *testing.B) {
 		})
 
 		srv := httptest.NewServer(r)
-		pool, err := pgxpool.New(context.Background(), db)
-		if err != nil {
-			logger.Log.Error("Error wile init db driver: " + err.Error())
-			panic(err)
+		ctrl := gomock.NewController(b)
+		defer ctrl.Finish()
+
+		m := mock_storage.NewMockStorage(ctrl)
+		m.EXPECT().InsertBanchURL(context.Background(), gomock.All()).Return(nil)
+
+		server.AddStorage(m)
+
+		cfg := config.AppConfig{
+			ServerAddress:   srv.Config.Addr,
+			BaseURL:         "",
+			FileStoragePath: "",
+			DatabaseDsn:     "",
+			EnableHTTPS:     false,
 		}
-		server.AddStorage(&storage.DBStorage{DB: pool})
-		if err := server.RestorStorage(); err != nil {
-			logger.Log.Error("Error restor storage: ", zap.Error(err))
-		}
-		err = server.storage.Clear(context.Background())
-		if err != nil {
-			log.Println(err.Error())
-		}
+		server.Config = &cfg
 
 		userID := "asgds-ryew24-nbf45"
 

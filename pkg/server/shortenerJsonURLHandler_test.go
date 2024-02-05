@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Dorrrke/shortener-url/internal/config"
 	"github.com/Dorrrke/shortener-url/pkg/storage"
 	"github.com/stretchr/testify/assert"
 )
@@ -73,6 +74,14 @@ func TestShortenerJsonURLHandler(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var URLServer Server
+			cfg := config.AppConfig{
+				ServerAddress:   "localhost:8080",
+				BaseURL:         "",
+				FileStoragePath: "",
+				DatabaseDsn:     "",
+				EnableHTTPS:     false,
+			}
+			URLServer.Config = &cfg
 			URLServer.AddStorage(&storage.MemStorage{URLMap: make(map[string]string)})
 
 			body := strings.NewReader(tt.body)
@@ -95,6 +104,15 @@ func BenchmarkShortenerJsonURLHandler(b *testing.B) {
 		b.StopTimer()
 		var URLServer Server
 		URLServer.AddStorage(&storage.MemStorage{URLMap: make(map[string]string)})
+
+		cfg := config.AppConfig{
+			ServerAddress:   "localhost:8080",
+			BaseURL:         "",
+			FileStoragePath: "",
+			DatabaseDsn:     "",
+			EnableHTTPS:     false,
+		}
+		URLServer.Config = &cfg
 
 		body := strings.NewReader(`{"url":"https://www.youtube.com/"}`)
 		request := httptest.NewRequest(http.MethodPost, "/api/shorten", body)

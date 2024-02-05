@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Dorrrke/shortener-url/internal/config"
 	"github.com/Dorrrke/shortener-url/pkg/storage"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-resty/resty/v2"
@@ -17,6 +18,7 @@ func TestGetOriginalURLHandler(t *testing.T) {
 	r := chi.NewRouter()
 
 	var URLServer Server
+
 	URLServer.AddStorage(&storage.MemStorage{URLMap: make(map[string]string)})
 
 	r.Route("/", func(r chi.Router) {
@@ -24,6 +26,15 @@ func TestGetOriginalURLHandler(t *testing.T) {
 		r.Get("/{id}", URLServer.GetOriginalURLHandler)
 	})
 	srv := httptest.NewServer(r)
+
+	cfg := config.AppConfig{
+		ServerAddress:   srv.Config.Addr,
+		BaseURL:         "",
+		FileStoragePath: "",
+		DatabaseDsn:     "",
+		EnableHTTPS:     false,
+	}
+	URLServer.Config = &cfg
 
 	type want struct {
 		code     int
@@ -96,6 +107,16 @@ func BenchmarkGetOriginalURLHandler(b *testing.B) {
 			r.Get("/{id}", URLServer.GetOriginalURLHandler)
 		})
 		srv := httptest.NewServer(r)
+
+		cfg := config.AppConfig{
+			ServerAddress:   srv.Config.Addr,
+			BaseURL:         "",
+			FileStoragePath: "",
+			DatabaseDsn:     "",
+			EnableHTTPS:     false,
+		}
+		URLServer.Config = &cfg
+
 		postReq := resty.New().R()
 		postReq.Method = http.MethodPost
 		postReq.URL = srv.URL + "/"
