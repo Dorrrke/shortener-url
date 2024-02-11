@@ -93,6 +93,8 @@ func (s *MemStorage) SetDeleteURLStatus(ctx context.Context, value []string) err
 	return errors.New("DataBase is not init")
 }
 
+// GetAllUrls - метод получения количества пользователей сервиса и количество всех сокращенных URL.
+// Так как это MemStorage возвращает ошибку, что бд не подключена.
 func (s *MemStorage) GetStats(ctx context.Context) (int, int, error) {
 	return -1, -1, errors.New("DataBase is not init")
 }
@@ -204,6 +206,7 @@ func (s *DBStorage) GetAllUrls(ctx context.Context, userID string) ([]models.URL
 	return urls, nil
 }
 
+// GetAllUrls - метод получения количества пользователей сервиса и количество всех сокращенных URL.
 func (s *DBStorage) GetStats(ctx context.Context) (int, int, error) {
 	getStatStr := `SELECT COUNT(short), COUNT(DISTINCT uid) FROM short_urls`
 
