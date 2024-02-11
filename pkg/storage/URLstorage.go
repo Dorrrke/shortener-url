@@ -25,6 +25,7 @@ type Storage interface {
 	CreateTable(ctx context.Context) error
 	InsertBanchURL(ctx context.Context, value []models.BantchURL) error
 	SetDeleteURLStatus(ctx context.Context, value []string) error
+	GetStats(ctx context.Context) (int, int, error)
 	Clear(ctx context.Context) error
 }
 
@@ -89,6 +90,10 @@ func (s *MemStorage) CreateTable(ctx context.Context) error {
 // Так как это MemStorage возвращает ошибку, что бд не подключена.
 func (s *MemStorage) SetDeleteURLStatus(ctx context.Context, value []string) error {
 	return errors.New("DataBase is not init")
+}
+
+func (s *MemStorage) GetStats(ctx context.Context) (int, int, error) {
+	return -1, -1, errors.New("DataBase is not init")
 }
 
 // GetAllUrls - метод получения всех сокращенных url пользвателя из бд.
@@ -196,6 +201,21 @@ func (s *DBStorage) GetAllUrls(ctx context.Context, userID string) ([]models.URL
 	}
 
 	return urls, nil
+}
+
+func (s *DBStorage) GetStats(ctx context.Context) (int, int, error) {
+	getStatStr := `SELECT COUNT(short), COUNT(DISTINCT uid) FROM short_urls`
+
+	row := s.DB.QueryRow(ctx, getStatStr)
+	var URLCount int
+	var usersCount int
+
+	if err := row.Scan(&URLCount, &usersCount); err != nil {
+		return -1, -1, err
+	}
+
+	return URLCount, usersCount, nil
+
 }
 
 // CreateTable - метод создания таблицы в базе данных, если ее не существует.

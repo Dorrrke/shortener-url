@@ -71,12 +71,14 @@ func main() {
 
 	var stor storage.Storage
 	appCfg := config.MustLoad()
-	logger.Log.Info("Server config", zap.Any("cfg", appCfg))
+	logger.Log.Debug("Server config", zap.Any("cfg", appCfg))
 	if appCfg.DatabaseDsn != "" {
 		dbConn := initDB(appCfg.DatabaseDsn)
 		stor = &storage.DBStorage{DB: dbConn}
+		logger.Log.Info("DataBase connected")
 	} else {
 		stor = &storage.MemStorage{URLMap: make(map[string]string)}
+		logger.Log.Info("Mem storage created")
 	}
 
 	serverAPI := server.New(stor, appCfg)
@@ -96,7 +98,7 @@ func main() {
 	})
 
 	if err := g.Wait(); err != nil {
-		logger.Log.Error("server stoped", zap.String("exit reason", err.Error()))
+		logger.Log.Info("server stoped", zap.String("exit reason", err.Error()))
 	}
 }
 
@@ -111,6 +113,7 @@ func run(serv server.Server, serverHTTP *http.Server) error {
 		r.Route("/api", func(r chi.Router) {
 			r.Get("/user/urls", logger.WithLogging(server.GzipMiddleware(serv.GetAllUrls)))
 			r.Delete("/user/urls", logger.WithLogging(server.GzipMiddleware(serv.DeleteURLHandler)))
+			r.Get("/internal/stats", logger.WithLogging(server.GzipMiddleware(serv.GetServiceStats)))
 			r.Route("/shorten", func(r chi.Router) {
 				r.Post("/", logger.WithLogging(server.GzipMiddleware(serv.ShortenerJSONURLHandler)))
 				r.Post("/batch", logger.WithLogging(server.GzipMiddleware(serv.InsertBatchHandler)))

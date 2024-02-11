@@ -29,6 +29,11 @@ type URLModel struct {
 	OriginalID string `json:"original_url"`
 }
 
+type StatModel struct {
+	URLsCount  int `json:"urls"`
+	UsercCount int `json:"users"`
+}
+
 // BantchURL - для отправки на сохранение в базу данных нескольких скоращнных url сразу.
 type BantchURL struct {
 	OriginalURL string

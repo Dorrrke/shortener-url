@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"strings"
@@ -497,6 +498,39 @@ func (s *Server) DeleteURLHandler(res http.ResponseWriter, req *http.Request) {
 	res.WriteHeader(http.StatusAccepted)
 }
 
+// GetServiceStats - хендлер возвращающий статистику сервиса: количество пользователей и количество сокращенных URL.
+// Хендлрер работает тольок в том случае, если при конфигурации сервиса было указанно строковое представление бесскалссовой адресации.
+// Если при запросе хендлера, переданный в заглоловке X-Real-IP не в ходит в доврененную подсеть, хендлер возвращает статус 403.
+// Если подсеть не указана вообще, то доступ к хендлеру запрещен вовсе.
+func (s *Server) GetServiceStats(res http.ResponseWriter, req *http.Request) {
+	if s.Config.TrustedSubnet == "" {
+		http.Error(res, "Access is denied", http.StatusForbidden)
+		return
+	}
+	realIP := req.Header.Get("X-Real-IP")
+	headerIP := net.ParseIP(realIP)
+	_, IPnet, _ := net.ParseCIDR(s.Config.TrustedSubnet)
+	if !IPnet.Contains(headerIP) {
+		http.Error(res, "Access is denied", http.StatusForbidden)
+		return
+	}
+
+	statModel, err := s.getServiceStat()
+	if err != nil {
+		logger.Log.Error("Get stat error", zap.Error(err))
+		http.Error(res, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
+	res.Header().Set("Content-Type", "application/json")
+	res.WriteHeader(http.StatusOK)
+	enc := json.NewEncoder(res)
+	if err := enc.Encode(statModel); err != nil {
+		logger.Log.Debug("error encoding responce", zap.Error(err))
+		http.Error(res, "Не корректный запрос", http.StatusInternalServerError)
+	}
+}
+
 // AddStorage - функция для установки хранилища сервера.
 func (s *Server) AddStorage(stor storage.Storage) {
 	s.storage = stor
@@ -642,6 +676,19 @@ func (s *Server) CreateTable() error {
 		return err
 	}
 	return nil
+}
+
+func (s *Server) getServiceStat() (models.StatModel, error) {
+	logger.Log.Info("Get from db")
+	ctx := context.Background()
+	URLs, users, err := s.storage.GetStats(ctx)
+	if err != nil {
+		return models.StatModel{}, err
+	}
+	return models.StatModel{
+		URLsCount:  URLs,
+		UsercCount: users,
+	}, nil
 }
 
 // validationURL - метод валидации адреса.

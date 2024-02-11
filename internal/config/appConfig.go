@@ -22,6 +22,7 @@ type AppConfig struct {
 	FileStoragePath string `json:"file_storage_path" env:"FILE_STORAGE_PATH,required"`
 	DatabaseDsn     string `json:"database_dsn" env:"DATABASE_DSN,required"`
 	EnableHTTPS     bool   `json:"enable_https"`
+	TrustedSubnet   string `json:"trusted_subnet" env:"TRUSTED_SUBNET,required"`
 }
 
 // MustLoad - обязательная к запуску функция создающая файл конфига.
@@ -35,6 +36,7 @@ func MustLoad() *AppConfig {
 	flag.StringVar(&cfg.BaseURL, "b", "", "address and port to run short URL")
 	flag.StringVar(&cfg.FileStoragePath, "f", "", "storage file path")
 	flag.StringVar(&cfg.DatabaseDsn, "d", "", "databse addr")
+	flag.StringVar(&cfg.TrustedSubnet, "t", "", "trusted subnet")
 	httpsFlag := flag.Bool("s", false, "use https server")
 	flag.Parse()
 	cfg.EnableHTTPS = *httpsFlag
@@ -53,6 +55,9 @@ func MustLoad() *AppConfig {
 	if cfg.DatabaseDsn == "" {
 		cfg.DatabaseDsn = os.Getenv("DATABASE_DSN")
 	}
+	if cfg.TrustedSubnet == "" {
+		cfg.TrustedSubnet = os.Getenv("TRUSTED_SUBNET")
+	}
 	if cfg.FileStoragePath == "" {
 		cfg.FileStoragePath = os.Getenv("FILE_STORAGE_PATH")
 		if cfg.FileStoragePath == "" {
@@ -61,6 +66,10 @@ func MustLoad() *AppConfig {
 	}
 	if cfg.ServerAddress == "" {
 		cfg.ServerAddress = os.Getenv("SERVER_ADDRESS")
+	}
+
+	if cfg.TrustedSubnet == "" {
+		cfg.TrustedSubnet = os.Getenv("TRUSTED_SUBNET")
 	}
 
 	if cfg.ServerAddress == "" && cfg.BaseURL == "" && cfg.DatabaseDsn == "" {
