@@ -29,6 +29,7 @@ type URLModel struct {
 	OriginalID string `json:"original_url"`
 }
 
+// StatModel - модель для возврата статистики при запросе из довереной подсети.
 type StatModel struct {
 	URLsCount  int `json:"urls"`
 	UsercCount int `json:"users"`
