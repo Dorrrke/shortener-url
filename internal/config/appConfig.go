@@ -8,8 +8,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/Dorrrke/shortener-url/internal/logger"
 	"go.uber.org/zap"
+
+	"github.com/Dorrrke/shortener-url/internal/logger"
 )
 
 // FilePath — константа с названием файла для хранения данных при отсутствии подключения к бд.

@@ -6,11 +6,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Dorrrke/shortener-url/internal/config"
-	"github.com/Dorrrke/shortener-url/pkg/storage"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/Dorrrke/shortener-url/internal/config"
+	"github.com/Dorrrke/shortener-url/pkg/storage"
 )
 
 func TestGetOriginalURLHandler(t *testing.T) {

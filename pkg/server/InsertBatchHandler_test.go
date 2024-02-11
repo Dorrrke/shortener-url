@@ -6,14 +6,15 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/Dorrrke/shortener-url/internal/config"
-	"github.com/Dorrrke/shortener-url/internal/logger"
-	mock_storage "github.com/Dorrrke/shortener-url/mocks"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-resty/resty/v2"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
+
+	"github.com/Dorrrke/shortener-url/internal/config"
+	"github.com/Dorrrke/shortener-url/internal/logger"
+	mock_storage "github.com/Dorrrke/shortener-url/mocks"
 )
 
 var db = "postgres://postgres:6406655@localhost:5432/postgres"

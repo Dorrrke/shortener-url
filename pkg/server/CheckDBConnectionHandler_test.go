@@ -7,11 +7,12 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	mock_storage "github.com/Dorrrke/shortener-url/mocks"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-resty/resty/v2"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
+
+	mock_storage "github.com/Dorrrke/shortener-url/mocks"
 )
 
 func TestCheckDBConnectionHandler(t *testing.T) {

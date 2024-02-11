@@ -7,14 +7,15 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Dorrrke/shortener-url/internal/logger"
-	mock_storage "github.com/Dorrrke/shortener-url/mocks"
-	"github.com/Dorrrke/shortener-url/pkg/models"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-resty/resty/v2"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
+
+	"github.com/Dorrrke/shortener-url/internal/logger"
+	mock_storage "github.com/Dorrrke/shortener-url/mocks"
+	"github.com/Dorrrke/shortener-url/pkg/models"
 )
 
 func TestGetAllUrls(t *testing.T) {

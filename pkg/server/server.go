@@ -18,13 +18,14 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/pkg/errors"
 
+	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
+	"go.uber.org/zap"
+
 	"github.com/Dorrrke/shortener-url/internal/config"
 	"github.com/Dorrrke/shortener-url/internal/logger"
 	"github.com/Dorrrke/shortener-url/pkg/models"
 	"github.com/Dorrrke/shortener-url/pkg/storage"
-	"github.com/go-chi/chi/v5"
-	"github.com/google/uuid"
-	"go.uber.org/zap"
 )
 
 // SecretKey - Секретный ключ для создания JWT токена.

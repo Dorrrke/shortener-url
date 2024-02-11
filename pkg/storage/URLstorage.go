@@ -5,11 +5,12 @@ import (
 	"context"
 	"strings"
 
-	"github.com/Dorrrke/shortener-url/internal/logger"
-	"github.com/Dorrrke/shortener-url/pkg/models"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
+
+	"github.com/Dorrrke/shortener-url/internal/logger"
+	"github.com/Dorrrke/shortener-url/pkg/models"
 )
 
 // ErrMemStorageError ошибка при попыттке записать уже существующий url в MemStorage.

@@ -3,9 +3,10 @@ package server
 import (
 	"testing"
 
-	"github.com/Dorrrke/shortener-url/internal/logger"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
+
+	"github.com/Dorrrke/shortener-url/internal/logger"
 )
 
 func TestGetUID(t *testing.T) {

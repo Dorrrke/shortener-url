@@ -6,9 +6,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/Dorrrke/shortener-url/internal/config"
 	"github.com/Dorrrke/shortener-url/pkg/storage"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestShortenerURLHandler(t *testing.T) {

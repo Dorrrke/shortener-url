@@ -6,12 +6,13 @@ import (
 	"net/http/httptest"
 	"strings"
 
-	"github.com/Dorrrke/shortener-url/internal/logger"
-	"github.com/Dorrrke/shortener-url/pkg/storage"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-resty/resty/v2"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
+
+	"github.com/Dorrrke/shortener-url/internal/logger"
+	"github.com/Dorrrke/shortener-url/pkg/storage"
 )
 
 func ExampleServer_GetAllUrls() {
