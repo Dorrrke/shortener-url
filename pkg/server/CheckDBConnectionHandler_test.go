@@ -20,10 +20,10 @@ import (
 func TestCheckDBConnectionHandler(t *testing.T) {
 
 	r := chi.NewRouter()
-	var serverHttp Server
+	var serverHTTP Server
 
 	r.Route("/", func(r chi.Router) {
-		r.Get("/ping", serverHttp.CheckDBConnectionHandler)
+		r.Get("/ping", serverHTTP.CheckDBConnectionHandler)
 	})
 
 	srv := httptest.NewServer(r)
@@ -77,7 +77,7 @@ func TestCheckDBConnectionHandler(t *testing.T) {
 
 			var cfg config.AppConfig
 			sService := service.NewService(m, &cfg)
-			serverHttp = *New(&cfg, sService)
+			serverHTTP = *New(&cfg, sService)
 			getReq := resty.New().R()
 			getReq.Method = tt.method
 			getReq.URL = srv.URL + tt.request
@@ -94,10 +94,10 @@ func BenchmarkCheckDBConnectionHandler(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		b.StopTimer()
 		r := chi.NewRouter()
-		var serverHttp Server
+		var serverHTTP Server
 
 		r.Route("/", func(r chi.Router) {
-			r.Get("/ping", serverHttp.CheckDBConnectionHandler)
+			r.Get("/ping", serverHTTP.CheckDBConnectionHandler)
 		})
 
 		srv := httptest.NewServer(r)
@@ -110,7 +110,7 @@ func BenchmarkCheckDBConnectionHandler(b *testing.B) {
 
 		var cfg config.AppConfig
 		sService := service.NewService(m, &cfg)
-		serverHttp = *New(&cfg, sService)
+		serverHTTP = *New(&cfg, sService)
 		getReq := resty.New().R()
 		getReq.Method = http.MethodGet
 		getReq.URL = srv.URL + "/ping"
