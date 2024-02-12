@@ -332,7 +332,7 @@ func (s *ShortenerGRPCServer) InsertBatch(ctx context.Context, req *shortenergrp
 	}
 
 	var modelURL []models.RequestBatchURLModel
-	err := json.Unmarshal([]byte(req.UrlsJson), modelURL)
+	err := json.Unmarshal([]byte(req.UrlsJson), &modelURL)
 	if err != nil {
 		logger.Log.Debug("cannot decod boby json", zap.Error(err))
 		return nil, status.Error(codes.Internal, "Internal error")
@@ -373,7 +373,7 @@ func (s *ShortenerGRPCServer) InsertBatch(ctx context.Context, req *shortenergrp
 		return nil, status.Error(codes.Internal, "Save data error")
 	}
 
-	jsonUrls, err := json.Marshal(bantchValues)
+	jsonUrls, err := json.Marshal(resBatchValues)
 	if err != nil {
 		logger.Log.Debug("cannot decod boby json", zap.Error(err))
 		return nil, status.Error(codes.Internal, "Internal error")
@@ -445,13 +445,13 @@ func (s *ShortenerGRPCServer) ServiceStat(ctx context.Context, req *shortenergrp
 		return nil, status.Error(codes.Internal, "Internal error")
 	}
 
-	statJson, err := json.Marshal(statModel)
+	statJSON, err := json.Marshal(statModel)
 	if err != nil {
 		logger.Log.Debug("cannot encode to json", zap.Error(err))
 		return nil, status.Error(codes.Internal, "Internal error")
 	}
 
-	return &shortenergrpcv1.ServiceStatResponce{Stat: string(statJson)}, nil
+	return &shortenergrpcv1.ServiceStatResponce{Stat: string(statJSON)}, nil
 }
 
 func createJWTToken(uuid string) (string, error) {
