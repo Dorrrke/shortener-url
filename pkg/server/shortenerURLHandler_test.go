@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/Dorrrke/shortener-url/internal/config"
+	"github.com/Dorrrke/shortener-url/pkg/service"
 	"github.com/Dorrrke/shortener-url/pkg/storage"
 )
 
@@ -75,7 +76,6 @@ func TestShortenerURLHandler(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var URLServer Server
-			URLServer.AddStorage(&storage.MemStorage{URLMap: make(map[string]string)})
 
 			cfg := config.AppConfig{
 				ServerAddress:   "localhost:8080",
@@ -84,7 +84,8 @@ func TestShortenerURLHandler(t *testing.T) {
 				DatabaseDsn:     "",
 				EnableHTTPS:     false,
 			}
-			URLServer.Config = &cfg
+			sService := service.NewService(&storage.MemStorage{URLMap: make(map[string]string)}, &cfg)
+			URLServer = *New(&cfg, sService)
 
 			body := strings.NewReader(tt.body)
 			request := httptest.NewRequest(tt.method, tt.request, body)
@@ -105,7 +106,7 @@ func BenchmarkShortenerURLHandler(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		b.StopTimer()
 		var URLServer Server
-		URLServer.AddStorage(&storage.MemStorage{URLMap: make(map[string]string)})
+
 		cfg := config.AppConfig{
 			ServerAddress:   "localhost:8080",
 			BaseURL:         "",
@@ -113,7 +114,8 @@ func BenchmarkShortenerURLHandler(b *testing.B) {
 			DatabaseDsn:     "",
 			EnableHTTPS:     false,
 		}
-		URLServer.Config = &cfg
+		sService := service.NewService(&storage.MemStorage{URLMap: make(map[string]string)}, &cfg)
+		URLServer = *New(&cfg, sService)
 
 		body := strings.NewReader("https://www.youtube.com/")
 		request := httptest.NewRequest(http.MethodPost, "/", body)

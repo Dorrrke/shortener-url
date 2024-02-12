@@ -12,16 +12,18 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/Dorrrke/shortener-url/internal/config"
 	mock_storage "github.com/Dorrrke/shortener-url/mocks"
+	"github.com/Dorrrke/shortener-url/pkg/service"
 )
 
 func TestCheckDBConnectionHandler(t *testing.T) {
 
 	r := chi.NewRouter()
-	var server Server
+	var serverHttp Server
 
 	r.Route("/", func(r chi.Router) {
-		r.Get("/ping", server.CheckDBConnectionHandler)
+		r.Get("/ping", serverHttp.CheckDBConnectionHandler)
 	})
 
 	srv := httptest.NewServer(r)
@@ -73,7 +75,9 @@ func TestCheckDBConnectionHandler(t *testing.T) {
 				m.EXPECT().CheckDBConnect(tt.value).Return(nil)
 			}
 
-			server.AddStorage(m)
+			var cfg config.AppConfig
+			sService := service.NewService(m, &cfg)
+			serverHttp = *New(&cfg, sService)
 			getReq := resty.New().R()
 			getReq.Method = tt.method
 			getReq.URL = srv.URL + tt.request
@@ -90,10 +94,10 @@ func BenchmarkCheckDBConnectionHandler(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		b.StopTimer()
 		r := chi.NewRouter()
-		var server Server
+		var serverHttp Server
 
 		r.Route("/", func(r chi.Router) {
-			r.Get("/ping", server.CheckDBConnectionHandler)
+			r.Get("/ping", serverHttp.CheckDBConnectionHandler)
 		})
 
 		srv := httptest.NewServer(r)
@@ -104,7 +108,9 @@ func BenchmarkCheckDBConnectionHandler(b *testing.B) {
 
 		m.EXPECT().CheckDBConnect(context.Background()).Return(nil)
 
-		server.AddStorage(m)
+		var cfg config.AppConfig
+		sService := service.NewService(m, &cfg)
+		serverHttp = *New(&cfg, sService)
 		getReq := resty.New().R()
 		getReq.Method = http.MethodGet
 		getReq.URL = srv.URL + "/ping"

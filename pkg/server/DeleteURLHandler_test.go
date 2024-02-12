@@ -16,6 +16,7 @@ import (
 	"github.com/Dorrrke/shortener-url/internal/config"
 	"github.com/Dorrrke/shortener-url/internal/logger"
 	mock_storage "github.com/Dorrrke/shortener-url/mocks"
+	"github.com/Dorrrke/shortener-url/pkg/service"
 )
 
 func TestDeleteURLHandler(t *testing.T) {
@@ -95,7 +96,9 @@ func TestDeleteURLHandler(t *testing.T) {
 				logger.Log.Info("cannot create token", zap.Error(err))
 			}
 
-			server.AddStorage(m)
+			var cfg config.AppConfig
+			sService := service.NewService(m, &cfg)
+			server = *New(&cfg, sService)
 			getReq := resty.New().R()
 			getReq.Method = tt.method
 			getReq.URL = srv.URL + tt.request
@@ -150,7 +153,9 @@ func BenchmarkDeleteURLHandler(b *testing.B) {
 			logger.Log.Info("cannot create token", zap.Error(err))
 		}
 
-		server.AddStorage(m)
+		var cfg config.AppConfig
+		sService := service.NewService(m, &cfg)
+		server = *New(&cfg, sService)
 		getReq := resty.New().R()
 		getReq.Method = http.MethodDelete
 		getReq.URL = srv.URL + "/api/user/urls"

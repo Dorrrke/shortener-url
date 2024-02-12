@@ -15,6 +15,7 @@ import (
 	"github.com/Dorrrke/shortener-url/internal/config"
 	"github.com/Dorrrke/shortener-url/internal/logger"
 	mock_storage "github.com/Dorrrke/shortener-url/mocks"
+	"github.com/Dorrrke/shortener-url/pkg/service"
 )
 
 var db = "postgres://postgres:6406655@localhost:5432/postgres"
@@ -37,7 +38,6 @@ func TestInsertBatchHandler(t *testing.T) {
 		DatabaseDsn:     "",
 		EnableHTTPS:     false,
 	}
-	server.Config = &cfg
 
 	type want struct {
 		code        int
@@ -95,7 +95,8 @@ func TestInsertBatchHandler(t *testing.T) {
 				logger.Log.Info("cannot create token", zap.Error(err))
 			}
 
-			server.AddStorage(m)
+			sService := service.NewService(m, &cfg)
+			server = *New(&cfg, sService)
 
 			getReq := resty.New().R()
 			getReq.Method = tt.method
@@ -132,8 +133,6 @@ func BenchmarkInsertBatchHandler(b *testing.B) {
 		m := mock_storage.NewMockStorage(ctrl)
 		m.EXPECT().InsertBanchURL(context.Background(), gomock.All()).Return(nil)
 
-		server.AddStorage(m)
-
 		cfg := config.AppConfig{
 			ServerAddress:   srv.Config.Addr,
 			BaseURL:         "",
@@ -141,7 +140,8 @@ func BenchmarkInsertBatchHandler(b *testing.B) {
 			DatabaseDsn:     "",
 			EnableHTTPS:     false,
 		}
-		server.Config = &cfg
+		sService := service.NewService(m, &cfg)
+		server = *New(&cfg, sService)
 
 		userID := "asgds-ryew24-nbf45"
 

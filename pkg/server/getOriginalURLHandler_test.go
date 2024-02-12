@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/Dorrrke/shortener-url/internal/config"
+	"github.com/Dorrrke/shortener-url/pkg/service"
 	"github.com/Dorrrke/shortener-url/pkg/storage"
 )
 
@@ -19,8 +20,6 @@ func TestGetOriginalURLHandler(t *testing.T) {
 	r := chi.NewRouter()
 
 	var URLServer Server
-
-	URLServer.AddStorage(&storage.MemStorage{URLMap: make(map[string]string)})
 
 	r.Route("/", func(r chi.Router) {
 		r.Post("/", URLServer.ShortenerURLHandler)
@@ -35,7 +34,9 @@ func TestGetOriginalURLHandler(t *testing.T) {
 		DatabaseDsn:     "",
 		EnableHTTPS:     false,
 	}
-	URLServer.Config = &cfg
+
+	sService := service.NewService(&storage.MemStorage{URLMap: make(map[string]string)}, &cfg)
+	URLServer = *New(&cfg, sService)
 
 	type want struct {
 		code     int
@@ -101,7 +102,6 @@ func BenchmarkGetOriginalURLHandler(b *testing.B) {
 		r := chi.NewRouter()
 
 		var URLServer Server
-		URLServer.AddStorage(&storage.MemStorage{URLMap: make(map[string]string)})
 
 		r.Route("/", func(r chi.Router) {
 			r.Post("/", URLServer.ShortenerURLHandler)
@@ -116,7 +116,8 @@ func BenchmarkGetOriginalURLHandler(b *testing.B) {
 			DatabaseDsn:     "",
 			EnableHTTPS:     false,
 		}
-		URLServer.Config = &cfg
+		sService := service.NewService(&storage.MemStorage{URLMap: make(map[string]string)}, &cfg)
+		URLServer = *New(&cfg, sService)
 
 		postReq := resty.New().R()
 		postReq.Method = http.MethodPost

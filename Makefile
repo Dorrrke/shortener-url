@@ -17,8 +17,11 @@ stylization:
 	goimports -local "github.com/Dorrrke/shortener-url" -w .\cmd\
 	goimports -local "github.com/Dorrrke/shortener-url" -w .\internal\
 	goimports -local "github.com/Dorrrke/shortener-url" -w .\pkg\
-	
+
 run: test build
 	./main.exe
+
+gen: 
+	protoc -I pkg pkg/grpc/proto/shortener.proto --go_out=./pkg/grpc/gen --go_opt=paths=import --go-grpc_out=./pkg/grpc/gen --go-grpc_opt=paths=import
 
 all: test linter build run

@@ -1,0 +1,70 @@
+syntax = "proto3";
+
+package shortenergrpc;
+
+option go_package = "shortenergrpc.v1;shortenergrpcv1";
+
+service Shortener {
+    rpc GetOriginalURL (GetOriginalURLRequest) returns (GetOriginalURLResponce);
+    rpc ShortenerURL (ShortenerURLRequest) returns (ShortenerURLResponce);
+    rpc ShortenerJSON (ShortenerJSONRequest) returns (ShortenerJSONResponce);
+    rpc CheckDBConnection (CheckDBConnectionRequest) returns (CheckDBConnectionResponce);
+    rpc GetAllURLs (GetAllURLsRequest) returns (GetAllURLsResponce);
+    rpc InsertBatch (InsertBatchRequest) returns (InsertBatchResponce);
+    rpc DeleteURL (DeleteURLRequest) returns (DeleteURLResponce);
+    rpc ServiceStat (ServiceStatRequest) returns (ServiceStatResponce);
+}
+
+message GetOriginalURLRequest {
+    string short_url = 1;
+}
+
+message GetOriginalURLResponce {
+    string original_url = 1;
+}
+
+message ShortenerURLRequest {
+    string original_url = 1;
+}
+
+message ShortenerURLResponce {
+    string short_url = 1;
+}
+
+message ShortenerJSONRequest {
+    string orignal_url = 1;
+}
+
+message ShortenerJSONResponce {
+    string short_url_json = 1;
+}
+
+message CheckDBConnectionRequest {}
+
+message CheckDBConnectionResponce {}
+
+message GetAllURLsRequest {}
+
+message GetAllURLsResponce {
+    string all_urls_json = 1;
+}
+
+message InsertBatchRequest {
+    string urls_json = 1;
+}
+
+message InsertBatchResponce {
+    string short_urls_json = 1;
+}
+
+message DeleteURLRequest {
+    string urls = 1;
+}
+
+message DeleteURLResponce {}
+
+message ServiceStatRequest {}
+
+message ServiceStatResponce {
+    string stat = 1;
+}

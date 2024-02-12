@@ -41,3 +41,8 @@ type BantchURL struct {
 	ShortURL    string
 	UserID      string
 }
+
+type RestorURL struct {
+	ShortURL    string `json:"short_url"`
+	OriginalURL string `json:"original_url"`
+}

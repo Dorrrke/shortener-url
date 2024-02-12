@@ -28,7 +28,7 @@ type AppConfig struct {
 
 // MustLoad - обязательная к запуску функция создающая файл конфига.
 // Функция парсит переменные оркужения, флаги и данные из файла конфига.
-func MustLoad() *AppConfig {
+func MustLoad() (*AppConfig, bool) {
 	var cfg AppConfig
 
 	var cfgFilePath string
@@ -39,6 +39,7 @@ func MustLoad() *AppConfig {
 	flag.StringVar(&cfg.DatabaseDsn, "d", "", "databse addr")
 	flag.StringVar(&cfg.TrustedSubnet, "t", "", "trusted subnet")
 	httpsFlag := flag.Bool("s", false, "use https server")
+	grpcEnable := flag.Bool("g", false, "use https server")
 	flag.Parse()
 	cfg.EnableHTTPS = *httpsFlag
 
@@ -78,12 +79,12 @@ func MustLoad() *AppConfig {
 		fileConfig, err := uploadConfigFromFile(cfgFilePath)
 		if err != nil {
 			logger.Log.Error("config parsing from file error", zap.Error(err))
-			return &cfg
+			return &cfg, *grpcEnable
 		}
-		return &fileConfig
+		return &fileConfig, *grpcEnable
 	}
 
-	return &cfg
+	return &cfg, *grpcEnable
 }
 
 // uploadConfigFromFile - функция составления конфига из файла.
