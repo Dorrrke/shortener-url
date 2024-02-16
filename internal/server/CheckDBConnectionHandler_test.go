@@ -13,8 +13,8 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/Dorrrke/shortener-url/internal/config"
+	"github.com/Dorrrke/shortener-url/internal/service"
 	mock_storage "github.com/Dorrrke/shortener-url/mocks"
-	"github.com/Dorrrke/shortener-url/pkg/service"
 )
 
 func TestCheckDBConnectionHandler(t *testing.T) {

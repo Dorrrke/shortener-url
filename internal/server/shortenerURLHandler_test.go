@@ -9,11 +9,11 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/Dorrrke/shortener-url/internal/config"
-	"github.com/Dorrrke/shortener-url/pkg/service"
-	"github.com/Dorrrke/shortener-url/pkg/storage"
+	"github.com/Dorrrke/shortener-url/internal/service"
+	"github.com/Dorrrke/shortener-url/internal/storage"
 )
 
-func TestShortenerJsonURLHandler(t *testing.T) {
+func TestShortenerURLHandler(t *testing.T) {
 	type want struct {
 		code        int
 		contentType string
@@ -28,46 +28,46 @@ func TestShortenerJsonURLHandler(t *testing.T) {
 		want    want
 	}{
 		{
-			name: "Test Post Json hadler #1",
+			name: "Test Post hadler #1",
 			want: want{
 				code:        http.StatusCreated,
-				contentType: "application/json",
-				shortURL:    `{"result":"http://localhost:8080/"}`,
+				contentType: "text/plain",
+				shortURL:    "http://localhost:8080/",
 			},
-			request: "/api/shorten",
-			body:    `{"url":"https://www.youtube.com/"}`,
+			request: "/",
+			body:    "https://www.youtube.com/",
 			method:  http.MethodPost,
 		},
 		{
-			name: "Test Post Json hadler #2",
+			name: "Test Post hadler #2",
 			want: want{
 				code:        http.StatusCreated,
-				contentType: "application/json",
-				shortURL:    `{"result":"http://localhost:8080/"}`,
+				contentType: "text/plain",
+				shortURL:    "http://localhost:8080/",
 			},
-			request: "/api/shorten",
-			body:    `{"url":"https://www.iana.org/assignments/http-status-codes/http-status-codes.xhtml"}`,
+			request: "/",
+			body:    "https://www.iana.org/assignments/http-status-codes/http-status-codes.xhtml",
 			method:  http.MethodPost,
 		},
 		{
-			name: "Test negative request from Post Json hadler #3",
+			name: "Test negative request from Post hadler #3",
 			want: want{
 				code:        http.StatusBadRequest,
 				contentType: "text/plain; charset=utf-8",
 				shortURL:    "http://localhost:8080/",
 			},
-			request: "/api/shorten",
+			request: "/",
 			body:    "/",
 			method:  http.MethodPost,
 		},
 		{
-			name: "Test negative request from Post Josn hadler #4",
+			name: "Test negative request from Post hadler #4",
 			want: want{
 				code:        http.StatusBadRequest,
 				contentType: "text/plain; charset=utf-8",
 				shortURL:    "http://localhost:8080/",
 			},
-			request: "/api/shorten",
+			request: "/",
 			body:    "www.youtube.com",
 			method:  http.MethodPost,
 		},
@@ -76,6 +76,7 @@ func TestShortenerJsonURLHandler(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var URLServer Server
+
 			cfg := config.AppConfig{
 				ServerAddress:   "localhost:8080",
 				BaseURL:         "",
@@ -83,14 +84,13 @@ func TestShortenerJsonURLHandler(t *testing.T) {
 				DatabaseDsn:     "",
 				EnableHTTPS:     false,
 			}
-
 			sService := service.NewService(&storage.MemStorage{URLMap: make(map[string]string)}, &cfg)
 			URLServer = *New(&cfg, sService)
 
 			body := strings.NewReader(tt.body)
 			request := httptest.NewRequest(tt.method, tt.request, body)
 			w := httptest.NewRecorder()
-			URLServer.ShortenerJSONURLHandler(w, request)
+			URLServer.ShortenerURLHandler(w, request)
 
 			result := w.Result()
 
@@ -102,7 +102,7 @@ func TestShortenerJsonURLHandler(t *testing.T) {
 	}
 }
 
-func BenchmarkShortenerJsonURLHandler(b *testing.B) {
+func BenchmarkShortenerURLHandler(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		b.StopTimer()
 		var URLServer Server
@@ -117,10 +117,10 @@ func BenchmarkShortenerJsonURLHandler(b *testing.B) {
 		sService := service.NewService(&storage.MemStorage{URLMap: make(map[string]string)}, &cfg)
 		URLServer = *New(&cfg, sService)
 
-		body := strings.NewReader(`{"url":"https://www.youtube.com/"}`)
-		request := httptest.NewRequest(http.MethodPost, "/api/shorten", body)
+		body := strings.NewReader("https://www.youtube.com/")
+		request := httptest.NewRequest(http.MethodPost, "/", body)
 		w := httptest.NewRecorder()
 		b.StartTimer()
-		URLServer.ShortenerJSONURLHandler(w, request)
+		URLServer.ShortenerURLHandler(w, request)
 	}
 }

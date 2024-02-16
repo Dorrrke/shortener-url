@@ -15,9 +15,9 @@ import (
 
 	"github.com/Dorrrke/shortener-url/internal/config"
 	"github.com/Dorrrke/shortener-url/internal/logger"
+	"github.com/Dorrrke/shortener-url/internal/models"
+	"github.com/Dorrrke/shortener-url/internal/service"
 	mock_storage "github.com/Dorrrke/shortener-url/mocks"
-	"github.com/Dorrrke/shortener-url/pkg/models"
-	"github.com/Dorrrke/shortener-url/pkg/service"
 )
 
 func TestGetAllUrls(t *testing.T) {

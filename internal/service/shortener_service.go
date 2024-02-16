@@ -12,8 +12,8 @@ import (
 
 	"github.com/Dorrrke/shortener-url/internal/config"
 	"github.com/Dorrrke/shortener-url/internal/logger"
-	"github.com/Dorrrke/shortener-url/pkg/models"
-	"github.com/Dorrrke/shortener-url/pkg/storage"
+	"github.com/Dorrrke/shortener-url/internal/models"
+	"github.com/Dorrrke/shortener-url/internal/storage"
 )
 
 // type Service interface {

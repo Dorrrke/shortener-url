@@ -21,11 +21,11 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/Dorrrke/shortener-url/internal/config"
+	grpcserver "github.com/Dorrrke/shortener-url/internal/grpc"
 	"github.com/Dorrrke/shortener-url/internal/logger"
-	grpcserver "github.com/Dorrrke/shortener-url/pkg/grpc"
-	"github.com/Dorrrke/shortener-url/pkg/server"
-	"github.com/Dorrrke/shortener-url/pkg/service"
-	"github.com/Dorrrke/shortener-url/pkg/storage"
+	"github.com/Dorrrke/shortener-url/internal/server"
+	"github.com/Dorrrke/shortener-url/internal/service"
+	"github.com/Dorrrke/shortener-url/internal/storage"
 )
 
 // FilePath — константа с названием файла для хранения данных при отсутствии подключения к бд.

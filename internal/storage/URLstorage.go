@@ -10,7 +10,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/Dorrrke/shortener-url/internal/logger"
-	"github.com/Dorrrke/shortener-url/pkg/models"
+	"github.com/Dorrrke/shortener-url/internal/models"
 )
 
 // ErrMemStorageError ошибка при попыттке записать уже существующий url в MemStorage.

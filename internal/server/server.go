@@ -19,9 +19,9 @@ import (
 
 	"github.com/Dorrrke/shortener-url/internal/config"
 	"github.com/Dorrrke/shortener-url/internal/logger"
-	"github.com/Dorrrke/shortener-url/pkg/models"
-	"github.com/Dorrrke/shortener-url/pkg/service"
-	"github.com/Dorrrke/shortener-url/pkg/storage"
+	"github.com/Dorrrke/shortener-url/internal/models"
+	"github.com/Dorrrke/shortener-url/internal/service"
+	"github.com/Dorrrke/shortener-url/internal/storage"
 )
 
 // SecretKey - Секретный ключ для создания JWT токена.
@@ -506,156 +506,6 @@ func (s *Server) GetServiceStats(res http.ResponseWriter, req *http.Request) {
 	}
 }
 
-// // AddStorage - функция для установки хранилища сервера.
-// func (s *Server) AddStorage(stor storage.Storage) {
-// 	s.storage = stor
-// }
-
-// // AddFilePath - функция для установки пути к файлу сохранинеия url.
-// func (s *Server) AddFilePath(fileName string) {
-// 	s.filePath = fileName
-// }
-
-// GetFilePath - функция для получения пути к файлу сохранинеия url.
-// func (s *Server) GetFilePath() string {
-// 	return s.filePath
-// }
-
-// RestorStorage - функция для восстановления харнилища после перезапуска сервиса.
-// func (s *Server) RestorStorage() error {
-// 	if err := s.storage.CheckDBConnect(context.Background()); err == nil {
-// 		if err := s.CreateTable(); err != nil {
-// 			logger.Log.Info("Error when create table: " + err.Error())
-// 			return errors.Wrap(err, "Error when create table: ")
-// 		}
-// 	}
-// 	if s.filePath != "" {
-// 		file, err := os.OpenFile(s.filePath, os.O_RDONLY|os.O_CREATE, 0666)
-// 		if err != nil {
-// 			return err
-// 		}
-// 		scanner := bufio.NewScanner(file)
-// 		for scanner.Scan() {
-// 			data := restorURL{}
-// 			err := json.Unmarshal(scanner.Bytes(), &data)
-// 			if err != nil {
-// 				return err
-// 			}
-// 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-// 			defer cancel()
-// 			s.storage.InsertURL(ctx, data.ShortURL, data.OriginalURL, "")
-// 		}
-// 		file.Close()
-// 		return nil
-// 	}
-// 	return nil
-// }
-
-// func writeURL(fileName string, lastURL restorURL) error {
-// 	file, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	writer := bufio.NewWriter(file)
-// 	data, err := json.Marshal(&lastURL)
-// 	if err != nil {
-// 		return errors.Wrap(err, "encode last url")
-// 	}
-// 	if _, err := writer.Write(data); err != nil {
-// 		return errors.Wrap(err, "write if file last url")
-// 	}
-// 	if err := writer.WriteByte('\n'); err != nil {
-// 		return errors.Wrap(err, "write in file '\n'")
-// 	}
-// 	writer.Flush()
-// 	file.Close()
-// 	return nil
-// }
-
-// func (s *Server) saveURL(original string, short string, userID string) error {
-// 	logger.Log.Info("Save into db")
-// 	ctx := context.Background()
-// 	if err := s.storage.InsertURL(ctx, original, short, userID); err != nil {
-// 		return err
-// 	}
-// 	if s.filePath != "" {
-// 		logger.Log.Info("Save into file")
-// 		if err := writeURL(s.filePath, restorURL{short, original}); err != nil {
-// 			return err
-// 		}
-// 		return nil
-// 	}
-// 	return nil
-// }
-
-// // SaveURLBatch - функция связка между сервером и хранилищем.
-// // В функции создатся контекст, после чего делается запрос на сохранения батча адресов в хранилище.
-// func (s *Server) SaveURLBatch(batch []models.BantchURL) error {
-// 	ctx := context.Background()
-// 	if err := s.storage.InsertBanchURL(ctx, batch); err != nil {
-// 		return err
-// 	}
-// 	if s.filePath != "" {
-// 		logger.Log.Info("Save batch into file")
-// 		for _, v := range batch {
-// 			if err := writeURL(s.filePath, restorURL{v.ShortURL, v.OriginalURL}); err != nil {
-// 				return err
-// 			}
-// 		}
-// 		return nil
-// 	}
-// 	return nil
-// }
-
-// // getURLByShortURL - функция связка между сервером и хранилищем.
-// // В функции создатся контекст, после чего делается запрос на получение оригинального аддреса по сокращенному из хранилища.
-// func (s *Server) getURLByShortURL(short string) (string, bool, error) {
-// 	logger.Log.Info("Get from db")
-// 	ctx := context.Background()
-// 	originalURL, deleted, err := s.storage.GetOriginalURLByShort(ctx, short)
-// 	if err != nil {
-// 		return "", false, err
-// 	}
-
-// 	return originalURL, deleted, nil
-// }
-
-// // getAllURLs - функция связка между сервером и хранилищем.
-// // В функции создатся контекст, после чего делается запрос на получение сокращенных пользователем аддресов из хранилища.
-// func (s *Server) getAllURLs(userID string) ([]models.URLModel, error) {
-// 	ctx := context.Background()
-// 	userURL, err := s.storage.GetAllUrls(ctx, userID)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	return userURL, nil
-// }
-
-// // getURLByOriginalURL - функция связка между сервером и хранилищем.
-// // В функции создатся контекст, после чего делается запрос на получение сокращенного аддреса по оригинальному из хранилища.
-// func (s *Server) getURLByOriginalURL(original string) (string, error) {
-// 	logger.Log.Info("Get from db")
-// 	ctx := context.Background()
-// 	originalURL, err := s.storage.GetShortByOriginalURL(ctx, original)
-// 	if err != nil {
-// 		return "", err
-// 	}
-// 	return originalURL, nil
-// }
-
-// func (s *Server) getServiceStat() (models.StatModel, error) {
-// 	logger.Log.Info("Get from db")
-// 	ctx := context.Background()
-// 	URLs, users, err := s.storage.GetStats(ctx)
-// 	if err != nil {
-// 		return models.StatModel{}, err
-// 	}
-// 	return models.StatModel{
-// 		URLsCount:  URLs,
-// 		UsercCount: users,
-// 	}, nil
-// }
-
 // validationURL - метод валидации адреса.
 func validationURL(URL string) bool {
 	if strings.HasPrefix(URL, "http://") || strings.HasPrefix(URL, "https://") {
@@ -697,26 +547,3 @@ func GetUID(tokenString string) string {
 
 	return claim.UserID
 }
-
-// deleteUrls - функция запускаемая во вторичном потоке во время созадния сервера для фонового удаления url.
-// func (s *Server) deleteUrls() {
-
-// 	var deleteQueue []string
-// 	ctx := context.Background()
-// 	for {
-// 		select {
-// 		case row := <-s.deleteQuereCh:
-// 			logger.Log.Info("Add url in delete quere", zap.String("url", row))
-// 			deleteQueue = append(deleteQueue, row)
-// 		default:
-// 			if deleteQueue != nil {
-// 				logger.Log.Info("Set delete status in db", zap.Any("delete quere", deleteQueue))
-// 				if err := s.storage.SetDeleteURLStatus(ctx, deleteQueue); err != nil {
-// 					logger.Log.Error("Dlete status", zap.Error(err))
-// 					continue
-// 				}
-// 				deleteQueue = nil
-// 			}
-// 		}
-// 	}
-// }

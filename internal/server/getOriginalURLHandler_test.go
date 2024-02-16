@@ -11,8 +11,8 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/Dorrrke/shortener-url/internal/config"
-	"github.com/Dorrrke/shortener-url/pkg/service"
-	"github.com/Dorrrke/shortener-url/pkg/storage"
+	"github.com/Dorrrke/shortener-url/internal/service"
+	"github.com/Dorrrke/shortener-url/internal/storage"
 )
 
 func TestGetOriginalURLHandler(t *testing.T) {
