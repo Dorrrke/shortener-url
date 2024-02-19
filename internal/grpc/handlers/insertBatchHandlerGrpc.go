@@ -19,7 +19,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-func InsertBatchHandlerGrpc(ctx context.Context, cfg config.AppConfig, sService service.ShortenerService, URLsJson string) (*shortenergrpcv1.InsertBatchResponce, error) {
+func InsertBatchHandlerGrpc(ctx context.Context, cfg config.AppConfig, sService service.ShortenerService, URLsJSON string) (*shortenergrpcv1.InsertBatchResponce, error) {
 	var userID string
 	md, ok := metadata.FromIncomingContext(ctx)
 	if ok {
@@ -55,7 +55,7 @@ func InsertBatchHandlerGrpc(ctx context.Context, cfg config.AppConfig, sService 
 	}
 
 	var modelURL []models.RequestBatchURLModel
-	err := json.Unmarshal([]byte(URLsJson), &modelURL)
+	err := json.Unmarshal([]byte(URLsJSON), &modelURL)
 	if err != nil {
 		logger.Log.Debug("cannot decod boby json", zap.Error(err))
 		return nil, status.Error(codes.Internal, "Internal error")

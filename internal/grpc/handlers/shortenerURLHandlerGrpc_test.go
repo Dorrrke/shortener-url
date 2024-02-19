@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/Dorrrke/shortener-url/internal/config"
 	"github.com/Dorrrke/shortener-url/internal/service"
@@ -58,9 +60,14 @@ func TestShortenerURLHandlerGrpc(t *testing.T) {
 			sService := service.NewService(&storage.MemStorage{URLMap: make(map[string]string)}, &cfg)
 
 			res, err := ShortenerURLHandlerGrpc(ctx, cfg, *sService, tt.originalURL)
+			if !tt.want.shortURL {
+				testErr := status.Error(codes.InvalidArgument, "Bad request")
+				assert.ErrorIs(t, err, testErr)
+			} else {
+				assert.NoError(t, err)
+				assert.True(t, res.ShortUrl != "")
+			}
 
-			assert.NoError(t, err)
-			assert.Equal(t, tt.want.shortURL, res)
 		})
 	}
 }

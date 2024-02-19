@@ -23,7 +23,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-func ShortenerJSONHandlerGrpc(ctx context.Context, cfg config.AppConfig, sService service.ShortenerService, orignalUrl string) (*shortenergrpcv1.ShortenerJSONResponce, error) {
+func ShortenerJSONHandlerGrpc(ctx context.Context, cfg config.AppConfig, sService service.ShortenerService, orignalURL string) (*shortenergrpcv1.ShortenerJSONResponce, error) {
 	var userID string
 	md, ok := metadata.FromIncomingContext(ctx)
 	if ok {
@@ -59,7 +59,7 @@ func ShortenerJSONHandlerGrpc(ctx context.Context, cfg config.AppConfig, sServic
 	}
 
 	var modelURL models.RequestURLJson
-	err := json.Unmarshal([]byte(orignalUrl), &modelURL)
+	err := json.Unmarshal([]byte(orignalURL), &modelURL)
 	if err != nil {
 		logger.Log.Debug("cannot decod boby json", zap.Error(err))
 		return nil, status.Error(codes.Internal, "Internal error")

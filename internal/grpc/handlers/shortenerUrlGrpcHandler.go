@@ -21,7 +21,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-func ShortenerURLHandlerGrpc(ctx context.Context, cfg config.AppConfig, sService service.ShortenerService, originalUrl string) (*shortenergrpcv1.ShortenerURLResponce, error) {
+func ShortenerURLHandlerGrpc(ctx context.Context, cfg config.AppConfig, sService service.ShortenerService, originalURL string) (*shortenergrpcv1.ShortenerURLResponce, error) {
 	var userID string
 	md, ok := metadata.FromIncomingContext(ctx)
 	if ok {
@@ -55,8 +55,8 @@ func ShortenerURLHandlerGrpc(ctx context.Context, cfg config.AppConfig, sService
 		header := metadata.Pairs("auth", token)
 		grpc.SetHeader(ctx, header)
 	}
-	originalURL := originalUrl
-	if !utils.ValidationURL(originalURL) {
+	original := originalURL
+	if !utils.ValidationURL(original) {
 		logger.Log.Error("Bad request, no valid url")
 		return nil, status.Error(codes.InvalidArgument, "Bad request")
 	}
@@ -68,9 +68,9 @@ func ShortenerURLHandlerGrpc(ctx context.Context, cfg config.AppConfig, sService
 		shortURL = "http://" + cfg.BaseURL + "/" + urlID
 	}
 
-	if err := sService.SaveURL(originalURL, shortURL, userID); err != nil {
+	if err := sService.SaveURL(original, shortURL, userID); err != nil {
 		if errors.Is(err, storage.ErrMemStorageError) {
-			shortDBURL, err := sService.GetShortByOriginal(originalURL)
+			shortDBURL, err := sService.GetShortByOriginal(original)
 			if err != nil {
 				logger.Log.Error("Error when read from base: ", zap.Error(err))
 				return nil, status.Error(codes.Internal, "Error when read from base")
@@ -85,7 +85,7 @@ func ShortenerURLHandlerGrpc(ctx context.Context, cfg config.AppConfig, sService
 				return nil, status.Error(codes.Aborted, "Cannot save url")
 			}
 
-			shortDBURL, err := sService.GetShortByOriginal(originalURL)
+			shortDBURL, err := sService.GetShortByOriginal(original)
 			if err != nil {
 				logger.Log.Error("Error when read from base: ", zap.Error(err))
 				return nil, status.Error(codes.Internal, "Error when read from base")

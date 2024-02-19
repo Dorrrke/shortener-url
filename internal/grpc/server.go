@@ -55,7 +55,7 @@ func (s *ShortenerGRPCServer) InsertBatch(ctx context.Context, req *shortenergrp
 }
 
 func (s *ShortenerGRPCServer) DeleteURL(ctx context.Context, req *shortenergrpcv1.DeleteURLRequest) (*shortenergrpcv1.DeleteURLResponce, error) {
-	return handlers.DeleteUrlHandlerGrpc(ctx, *s.cfg, *s.sService, req.GetUrls())
+	return handlers.DeleteURLHandlerGrpc(ctx, *s.cfg, *s.sService, req.GetUrls())
 }
 
 func (s *ShortenerGRPCServer) ServiceStat(ctx context.Context, req *shortenergrpcv1.ServiceStatRequest) (*shortenergrpcv1.ServiceStatResponce, error) {

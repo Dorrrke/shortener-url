@@ -17,7 +17,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-func DeleteUrlHandlerGrpc(ctx context.Context, cfg config.AppConfig, sService service.ShortenerService, URLs string) (*shortenergrpcv1.DeleteURLResponce, error) {
+func DeleteURLHandlerGrpc(ctx context.Context, cfg config.AppConfig, sService service.ShortenerService, URLs string) (*shortenergrpcv1.DeleteURLResponce, error) {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if ok {
 		values := md.Get("auth")

@@ -12,15 +12,15 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-func GetOriginalURLHandlerGrpc(ctx context.Context, cfg config.AppConfig, sService service.ShortenerService, shortUrl string) (*shortenergrpcv1.GetOriginalURLResponce, error) {
-	var shortURL string
+func GetOriginalURLHandlerGrpc(ctx context.Context, cfg config.AppConfig, sService service.ShortenerService, shortURL string) (*shortenergrpcv1.GetOriginalURLResponce, error) {
+	var short string
 	if cfg.BaseURL == "" {
-		shortURL = "http://" + cfg.ServerAddress + "/" + shortUrl
+		short = "http://" + cfg.ServerAddress + "/" + shortURL
 	} else {
-		shortURL = "http://" + cfg.BaseURL + "/" + shortUrl
+		short = "http://" + cfg.BaseURL + "/" + shortURL
 	}
 
-	url, delete, err := sService.GetOriginalURL(shortURL)
+	url, delete, err := sService.GetOriginalURL(short)
 	if err != nil {
 		logger.Log.Error("Error when read from base: ", zap.Error(err))
 		return nil, status.Error(codes.Internal, "Internal error")
