@@ -7,14 +7,17 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Dorrrke/shortener-url/internal/logger"
-	mock_storage "github.com/Dorrrke/shortener-url/mocks"
-	"github.com/Dorrrke/shortener-url/pkg/models"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-resty/resty/v2"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
+
+	"github.com/Dorrrke/shortener-url/internal/config"
+	"github.com/Dorrrke/shortener-url/internal/logger"
+	"github.com/Dorrrke/shortener-url/internal/models"
+	"github.com/Dorrrke/shortener-url/internal/service"
+	mock_storage "github.com/Dorrrke/shortener-url/mocks"
 )
 
 func TestGetAllUrls(t *testing.T) {
@@ -112,7 +115,9 @@ func TestGetAllUrls(t *testing.T) {
 				logger.Log.Info("cannot create token", zap.Error(err))
 			}
 
-			server.AddStorage(m)
+			var cfg config.AppConfig
+			sService := service.NewService(m, &cfg)
+			server = *New(&cfg, sService)
 			getReq := resty.New().R()
 			getReq.Method = tt.method
 			getReq.URL = srv.URL + tt.request
@@ -168,7 +173,9 @@ func BenchmarkGetAllUrls(b *testing.B) {
 			logger.Log.Info("cannot create token", zap.Error(err))
 		}
 
-		server.AddStorage(m)
+		var cfg config.AppConfig
+		sService := service.NewService(m, &cfg)
+		server = *New(&cfg, sService)
 		getReq := resty.New().R()
 		getReq.Method = http.MethodGet
 		getReq.URL = srv.URL + "/api/user/urls"

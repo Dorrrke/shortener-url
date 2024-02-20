@@ -19,7 +19,6 @@ package main
 import (
 	"strings"
 
-	"github.com/Dorrrke/shortener-url/pkg/linter"
 	"github.com/fatih/errwrap/errwrap"
 	"github.com/mdempsky/maligned/passes/maligned"
 	"golang.org/x/tools/go/analysis"
@@ -71,6 +70,8 @@ import (
 	"golang.org/x/tools/go/analysis/passes/unusedwrite"
 	"golang.org/x/tools/go/analysis/passes/usesgenerics"
 	"honnef.co/go/tools/staticcheck"
+
+	"github.com/Dorrrke/shortener-url/pkg/linter"
 )
 
 // main - функция входа для запуска Multicheker.

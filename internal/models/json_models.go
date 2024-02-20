@@ -29,9 +29,20 @@ type URLModel struct {
 	OriginalID string `json:"original_url"`
 }
 
+// StatModel - модель для возврата статистики при запросе из довереной подсети.
+type StatModel struct {
+	URLsCount  int `json:"urls"`
+	UsercCount int `json:"users"`
+}
+
 // BantchURL - для отправки на сохранение в базу данных нескольких скоращнных url сразу.
 type BantchURL struct {
 	OriginalURL string
 	ShortURL    string
 	UserID      string
+}
+
+type RestorURL struct {
+	ShortURL    string `json:"short_url"`
+	OriginalURL string `json:"original_url"`
 }

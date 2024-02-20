@@ -6,12 +6,15 @@ import (
 	"net/http/httptest"
 	"strings"
 
-	"github.com/Dorrrke/shortener-url/internal/logger"
-	"github.com/Dorrrke/shortener-url/pkg/storage"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-resty/resty/v2"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
+
+	"github.com/Dorrrke/shortener-url/internal/config"
+	"github.com/Dorrrke/shortener-url/internal/logger"
+	"github.com/Dorrrke/shortener-url/internal/service"
+	"github.com/Dorrrke/shortener-url/internal/storage"
 )
 
 func ExampleServer_GetAllUrls() {
@@ -29,7 +32,10 @@ func ExampleServer_GetAllUrls() {
 		logger.Log.Error("Error wile init db driver: " + err.Error())
 		panic(err)
 	}
-	server.AddStorage(&storage.DBStorage{DB: pool})
+
+	var cfg config.AppConfig
+	sService := service.NewService(&storage.DBStorage{DB: pool}, &cfg)
+	server = *New(&cfg, sService)
 
 	// Создаем jwt токен с id пользвователя
 	token, err := createJWTToken("asgds-ryew24-nbf45")
@@ -51,7 +57,10 @@ func ExampleServer_GetOriginalURLHandler() {
 	r := chi.NewRouter()
 
 	var URLServer Server
-	URLServer.AddStorage(&storage.MemStorage{URLMap: make(map[string]string)})
+
+	var cfg config.AppConfig
+	sService := service.NewService(&storage.MemStorage{URLMap: make(map[string]string)}, &cfg)
+	URLServer = *New(&cfg, sService)
 
 	r.Route("/", func(r chi.Router) {
 		r.Post("/", URLServer.ShortenerURLHandler)
@@ -70,7 +79,9 @@ func ExampleServer_GetOriginalURLHandler() {
 
 func ExampleServer_ShortenerURLHandler() {
 	var URLServer Server
-	URLServer.AddStorage(&storage.MemStorage{URLMap: make(map[string]string)})
+	var cfg config.AppConfig
+	sService := service.NewService(&storage.MemStorage{URLMap: make(map[string]string)}, &cfg)
+	URLServer = *New(&cfg, sService)
 
 	body := strings.NewReader("https://www.youtube.com/")
 	request := httptest.NewRequest(http.MethodPost, "/", body)
@@ -80,7 +91,9 @@ func ExampleServer_ShortenerURLHandler() {
 
 func ExampleServer_ShortenerJSONURLHandler() {
 	var URLServer Server
-	URLServer.AddStorage(&storage.MemStorage{URLMap: make(map[string]string)})
+	var cfg config.AppConfig
+	sService := service.NewService(&storage.MemStorage{URLMap: make(map[string]string)}, &cfg)
+	URLServer = *New(&cfg, sService)
 
 	body := strings.NewReader(`{"url":"https://www.youtube.com/"}`)
 	request := httptest.NewRequest(http.MethodPost, "/api/shorten", body)
@@ -109,7 +122,9 @@ func ExampleServer_InsertBatchHandler() {
 		logger.Log.Error("Error wile init db driver: " + err.Error())
 		panic(err)
 	}
-	server.AddStorage(&storage.DBStorage{DB: pool})
+	var cfg config.AppConfig
+	sService := service.NewService(&storage.DBStorage{DB: pool}, &cfg)
+	server = *New(&cfg, sService)
 
 	getReq := resty.New().R()
 	getReq.Method = http.MethodPost
@@ -142,7 +157,9 @@ func ExampleServer_DeleteURLHandler() {
 		logger.Log.Error("Error wile init db driver: " + err.Error())
 		panic(err)
 	}
-	server.AddStorage(&storage.DBStorage{DB: pool})
+	var cfg config.AppConfig
+	sService := service.NewService(&storage.DBStorage{DB: pool}, &cfg)
+	server = *New(&cfg, sService)
 	getReq := resty.New().R()
 	getReq.Method = http.MethodDelete
 	getReq.URL = srv.URL + "/api/user/urls"

@@ -5,6 +5,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -17,11 +18,14 @@ import (
 	"go.uber.org/zap"
 	"golang.org/x/crypto/acme/autocert"
 	"golang.org/x/sync/errgroup"
+	"google.golang.org/grpc"
 
 	"github.com/Dorrrke/shortener-url/internal/config"
+	grpcserver "github.com/Dorrrke/shortener-url/internal/grpc"
 	"github.com/Dorrrke/shortener-url/internal/logger"
-	"github.com/Dorrrke/shortener-url/pkg/server"
-	"github.com/Dorrrke/shortener-url/pkg/storage"
+	"github.com/Dorrrke/shortener-url/internal/server"
+	"github.com/Dorrrke/shortener-url/internal/service"
+	"github.com/Dorrrke/shortener-url/internal/storage"
 )
 
 // FilePath — константа с названием файла для хранения данных при отсутствии подключения к бд.
@@ -38,6 +42,7 @@ var (
 )
 
 func main() {
+
 	if buildVersion == "" {
 		buildVersion = "N/A"
 	} else {
@@ -70,33 +75,43 @@ func main() {
 	}()
 
 	var stor storage.Storage
-	appCfg := config.MustLoad()
-	logger.Log.Info("Server config", zap.Any("cfg", appCfg))
+	appCfg, enableGrpc := config.MustLoad()
+	logger.Log.Debug("Server config", zap.Any("cfg", appCfg))
 	if appCfg.DatabaseDsn != "" {
 		dbConn := initDB(appCfg.DatabaseDsn)
 		stor = &storage.DBStorage{DB: dbConn}
+		logger.Log.Info("DataBase connected")
 	} else {
 		stor = &storage.MemStorage{URLMap: make(map[string]string)}
+		logger.Log.Info("Mem storage created")
 	}
-
-	serverAPI := server.New(stor, appCfg)
-	if err := serverAPI.RestorStorage(); err != nil {
+	sService := service.NewService(stor, appCfg)
+	if err := sService.RestorStorage(); err != nil {
 		logger.Log.Error("Error restor storage: ", zap.Error(err))
 	}
+	serverAPI := server.New(appCfg, sService)
+	grpcServer := grpc.NewServer()
+	grpcserver.RegisterGrpcService(grpcServer, sService, appCfg)
 
 	server := &http.Server{}
 
 	g, gCtx := errgroup.WithContext(ctx)
 	g.Go(func() error {
+		if enableGrpc {
+			return runGrpc(grpcServer, appCfg)
+		}
 		return run(*serverAPI, server)
 	})
 	g.Go(func() error {
 		<-gCtx.Done()
+		if enableGrpc {
+			return stopGrpcService(grpcServer)
+		}
 		return stopService(server)
 	})
 
 	if err := g.Wait(); err != nil {
-		logger.Log.Error("server stoped", zap.String("exit reason", err.Error()))
+		logger.Log.Info("server stoped", zap.String("exit reason", err.Error()))
 	}
 }
 
@@ -111,6 +126,7 @@ func run(serv server.Server, serverHTTP *http.Server) error {
 		r.Route("/api", func(r chi.Router) {
 			r.Get("/user/urls", logger.WithLogging(server.GzipMiddleware(serv.GetAllUrls)))
 			r.Delete("/user/urls", logger.WithLogging(server.GzipMiddleware(serv.DeleteURLHandler)))
+			r.Get("/internal/stats", logger.WithLogging(server.GzipMiddleware(serv.GetServiceStats)))
 			r.Route("/shorten", func(r chi.Router) {
 				r.Post("/", logger.WithLogging(server.GzipMiddleware(serv.ShortenerJSONURLHandler)))
 				r.Post("/batch", logger.WithLogging(server.GzipMiddleware(serv.InsertBatchHandler)))
@@ -151,6 +167,16 @@ func run(serv server.Server, serverHTTP *http.Server) error {
 	return serverHTTP.ListenAndServe()
 }
 
+func runGrpc(serverGrpc *grpc.Server, cfg *config.AppConfig) error {
+	l, err := net.Listen("tcp", cfg.ServerAddress)
+	if err != nil {
+		return err
+	}
+
+	err = serverGrpc.Serve(l)
+	return err
+}
+
 func initDB(DBAddr string) *pgxpool.Pool {
 	pool, err := pgxpool.New(context.Background(), DBAddr)
 	if err != nil {
@@ -164,5 +190,10 @@ func initDB(DBAddr string) *pgxpool.Pool {
 func stopService(serverHTTP *http.Server) error {
 	serverHTTP.Shutdown(context.Background())
 	logger.Log.Info("Service stop")
+	return nil
+}
+
+func stopGrpcService(serverGrpc *grpc.Server) error {
+	serverGrpc.GracefulStop()
 	return nil
 }
